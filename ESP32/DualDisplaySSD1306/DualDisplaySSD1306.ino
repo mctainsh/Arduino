@@ -1,71 +1,27 @@
-/**************************************************************************
-    This is an example for our Monochrome OLEDs based on SSD1306 drivers
-
-    Pick one up today in the adafruit shop!
-    ------> http://www.adafruit.com/category/63_98
-
-    This example is for a 128x64 pixel display using I2C to communicate
-    3 pins are required to interface (two I2C and one reset).
-
-    Adafruit invests time and resources providing this open
-    source code, please support Adafruit and open-source
-    hardware by purchasing products from Adafruit!
-
-    Written by Limor Fried/Ladyada for Adafruit Industries,
-    with contributions from the open source community.
-    BSD license, check license.txt for more information
-    All text above, and the splash screen below must be
-    included in any redistribution.
- **************************************************************************/
-
 #include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <DHT.h>
+#include <WiFi.h>
 
 //Constants
-#define DHTPIN 17     // what pin we're connected to
-#define DHTTYPE DHT22   // DHT 22  (AM2302)
-DHT dht(DHTPIN, DHTTYPE); //// Initialize DHT sensor for normal 16mhz Arduino
-
+#define DHTPIN 17     					// what pin we're connected to
+#define DHTTYPE DHT22   				// DHT 22  (AM2302)
+#define OLED_RESET     	4 				// Reset pin # (or -1 if sharing Arduino reset pin)
+#define WIDTH 			((int16_t)128) 	// OLED display width, in pixels
+#define HEIGHT 			((int16_t)64) 	// OLED display height, in pixels
+#define WIFI_SSID		""
+#define WIFI_PWD		""
 
 //Variables
+DHT dht(DHTPIN, DHTTYPE); 	// Initialize DHT sensor for normal 16mhz Arduino
 int chk;
-float hum;  //Stores humidity value
-float temp; //Stores temperature value
-
-#define WIDTH ((int16_t)128) // OLED display width, in pixels
-#define HEIGHT ((int16_t)64) // OLED display height, in pixels
+String _jsonLine;
 
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
-#define OLED_RESET     4 // Reset pin # (or -1 if sharing Arduino reset pin)
 Adafruit_SSD1306 display1(WIDTH, HEIGHT, &Wire, OLED_RESET);
 Adafruit_SSD1306 display2(WIDTH, HEIGHT, &Wire, OLED_RESET);
-
-#define NUMFLAKES     10 // Number of snowflakes in the animation example
-
-#define LOGO_HEIGHT   16
-#define LOGO_WIDTH    16
-static const unsigned char PROGMEM logo_bmp[] =
-{
-	B00000000, B11000000,
-	B00000001, B11000000,
-	B00000001, B11000000,
-	B00000011, B11100000,
-	B11110011, B11100000,
-	B11111110, B11111000,
-	B01111110, B11111111,
-	B00110011, B10011111,
-	B00011111, B11111100,
-	B00001101, B01110000,
-	B00011011, B10100000,
-	B00111111, B11100000,
-	B00111111, B11110000,
-	B01111100, B11110000,
-	B01110000, B01110000,
-	B00000000, B00110000
-};
 
 void setup()
 {
@@ -98,69 +54,198 @@ void setup()
 
 void loop()
 {
-	// Clear the buffer
-	display1.clearDisplay();
-	display2.clearDisplay();
-
-	// Draw a single pixel in white
-	display1.drawPixel(10, 10, SSD1306_WHITE);
-
-	// Show the display buffer on the screen. You MUST call display() after
-	// drawing commands to make them visible on screen!
-	display1.display();
-	delay(2000);
-	// display1.display() is NOT necessary after every single drawing command,
-	// unless that's what you want...rather, you can batch up a bunch of
-	// drawing operations and then update the screen all at once by calling
-	// display1.display(). These examples demonstrate both approaches...
-
-	displayTempAndHumidity();
-	testdrawline();      // Draw many lines
-	displayTempAndHumidity();
-	testdrawrect();      // Draw rectangles (outlines)
-	displayTempAndHumidity();
-	testfillrect();      // Draw rectangles (filled)
-	displayTempAndHumidity();
-	testdrawcircle();    // Draw circles (outlines)
-	displayTempAndHumidity();
-	testfillcircle();    // Draw circles (filled)
-	displayTempAndHumidity();
-	testdrawroundrect(); // Draw rounded rectangles (outlines)
-	displayTempAndHumidity();
-	testfillroundrect(); // Draw rounded rectangles (filled)
+	// Left display
 	displayTempAndHumidity();
 
-	testdrawtriangle();  // Draw triangles (outlines)
-	displayTempAndHumidity();
+	//_jsonLine = "			\"lon\": 153.0," ;
+	//parseBOM( "\"air_temp\": " );
+	//_jsonLine = "				 \"air_temp\": 27.4,";
+	//parseBOM( "\"air_temp\": " );
+	//_jsonLine = "				\"cloud\": \"-\",";
+	//parseBOM( "\"air_temp\": " );
 
-	testfilltriangle();  // Draw triangles (filled)
-	displayTempAndHumidity();
-
-	testdrawchar();      // Draw characters of the default font
-	displayTempAndHumidity();
-
-	testdrawstyles();    // Draw 'stylized' characters
-	displayTempAndHumidity();
-
-	testscrolltext();    // Draw scrolling text
-	displayTempAndHumidity();
-
-	testdrawbitmap();    // Draw a small bitmap image
+	// Right Diaplay
+	if(WiFi.status() == WL_CONNECTED)
+		displayOutsideWeather();
+	else
+		displayNetworks();
 
 	// Invert and restore display, pausing in-between
 	display1.invertDisplay(true);
 	delay(1000);
 	display1.invertDisplay(false);
-	delay(1000);
+	delay(10000);
 
-	testanimate(logo_bmp, LOGO_WIDTH, LOGO_HEIGHT); // Animate bitmaps
 }
 
+////////////////////////////////////////////////////////////////////////////////////////
+// No network so record some details
+void displayNetworks()
+{
+	displaySetup( &display2 );
+	display2.setTextSize(1);
+
+	// Setup Wifi to scan mode
+	WiFi.mode(WIFI_STA);
+	WiFi.disconnect();
+	delay(100);
+
+	Serial.println("* Scan start");
+
+	// WiFi.scanNetworks will return the number of networks found
+	int n = WiFi.scanNetworks();
+	Serial.println("* Scan done");
+	display2.printf("Found %d networkd\r\n", n);
+	for (int i = 0; i < n; ++i)
+	{
+		display2.println(WiFi.SSID(i));
+		Serial.print("* ");
+		Serial.println(WiFi.SSID(i));
+		delay(10);
+	}
+
+	// Kick off a connection request
+	WiFi.begin(WIFI_SSID, WIFI_PWD);
+	display2.display();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+// Display the outdie weather detail
+// Read data from JSON http://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94576.json
+// List of stations is at http://www.bom.gov.au/qld/observations/brisbane.shtml
+bool _firstCall = true;
+const char* host = "www.bom.gov.au";
+int _nextMills = 0;
+void displayOutsideWeather()
+{
+	// On first call display the local IP address
+	if( _firstCall )
+	{
+		displaySetup( &display2);
+		display2.println(WiFi.localIP());
+		_firstCall = false;
+		display2.display();
+		return;
+	}
+
+	// Read every 10 minutes
+	if( _nextMills > millis() )
+		return;
+	_nextMills = millis() + 10 * 60 * 1000;
+
+	displaySetup( &display2);
+	// Read the weather
+	WiFiClient client;
+	const int httpPort = 80;
+	if (!client.connect(host, httpPort))
+	{
+		display2.println("connection failed");
+		display2.display();
+		return;
+	}
+
+	// This will send the request to the server
+	client.print(String("GET /fwo/IDQ60901/IDQ60901.94576.json HTTP/1.1\r\n") +
+	             "Host: www.bom.gov.au\r\n" +
+	             "Connection: keep-alive\r\n" +
+	             "Cache-Control: max-age=0\r\n" +
+	             "Upgrade-Insecure-Requests: 1\r\n" +
+	             "User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36\r\n" +
+	             "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9\r\n" +
+	             "Accept-Encoding: deflate\r\n" +
+	             //"Accept-Encoding: gzip, deflate\r\n" +
+	             "Accept-Language: en-GB,en-US;q=0.9,en;q=0.8\r\n" +
+	             //"Cookie: __utma=172860464.1893302911.1601612971.1601612971.1601612971.1; __utmc=172860464; __utmz=172860464.1601612971.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none); __utmt=1; __utmb=172860464.13.9.1601613182969\r\n" +
+	             "If-None-Match: \"a67bdc-1e434-5b0a89ad1fa80\"\r\n" +
+	             "\r\n");
+	//"If-Modified-Since: Fri, 02 Oct 2020 04:31:22 GMT\r\n\r\n");
+
+	unsigned long timeout = millis();
+	while (client.available() == 0)
+	{
+		if (millis() - timeout > 25000)
+		{
+			display2.println(">>> Client Timeout !");
+			client.stop();
+			return;
+		}
+	}
+
+	// Read all the lines of the reply from server and print them to Serial
+	// "apparent_t": 25.9,
+	// "air_temp": 27.4,
+	// "press": 1021.2,
+	// "rel_hum": 38,
+	// "wind_dir": "ENE",
+	// "wind_spd_kmh": 11,
+	String air_temp = "";
+	String rel_hum = "";
+	while(client.available())
+	{
+		_jsonLine = client.readStringUntil(',');
+		parseBOM( "\"air_temp\": ", &air_temp );
+		parseBOM( "\"rel_hum\": ", &rel_hum );
+		if( air_temp != "" && rel_hum != "" )
+		{
+			display2.println(air_temp);
+			display2.println(rel_hum);
+			break;
+		}
+		Serial.printf( "READLINE(%d) %s\r\n", millis(), _jsonLine.c_str());
+	}
+	client.stop();
+	display2.display();
+}
+
+///////////////////////////////////////////////////////////////////////////
+// Reset the dis[play to start a new draw
+void displaySetup( Adafruit_SSD1306* d)
+{
+	d->clearDisplay();
+	d->setTextSize(2);
+	d->setTextColor(SSD1306_WHITE);
+	d->setCursor(0, 0);
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+// Find the value after the field
+//const char* parseBOM( const char* field )
+//{
+//	const char* line = _jsonLine.c_str();
+//	const char *  i = strstr(line,field);
+//	if ( i == NULL )
+//		return NULL;
+//	char * result = i + strlen(field);	// Get the field
+//	result[strlen(result)-2] = NULL;			// Remove terminating comma
+//	Serial.printf("Found %s in %s\r\n", result, line);
+//	return result;
+//}
+
+//////////////////////////////////////////////////////////////////////////////////////
+// Find the value after the field
+void parseBOM( const char* field, String *output )
+{
+	const char* line = _jsonLine.c_str();
+	const char *  i = strstr(line,field);
+	if ( i == NULL )
+		return;
+	String result = i + strlen(field);	// Get the field
+	//result[strlen(result)-2] = NULL;			// Remove terminating comma
+	int comma = result.lastIndexOf(',');
+	if( comma > 0 )
+		result = result.substring(0, comma);
+	Serial.printf("Found %s in %s\r\n", result.c_str(), line);
+	if( output->length() < 1 )
+		output->concat( result );
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Display local Temp and Humidity
 void displayTempAndHumidity()
 {
 	//Read data and store it to variables hum and temp
-	hum = dht.readHumidity();
-	temp = dht.readTemperature();
+	float hum = dht.readHumidity();
+	float temp = dht.readTemperature();
 	//Print temp and humidity values to serial monitor
 	Serial.print("Humidity: ");
 	Serial.print(hum);
@@ -171,372 +256,29 @@ void displayTempAndHumidity()
 
 
 	display1.clearDisplay();
-	display2.clearDisplay();
 
-	display1.setTextSize(2); // Draw 2X-scale text
+	display1.setTextSize(1); // Draw 2X-scale text
 	display1.setTextColor(SSD1306_WHITE);
-	display2.setTextSize(2); // Draw 2X-scale text
-	display2.setTextColor(SSD1306_WHITE);
 	display1.setCursor(10, 0);
-	display2.setCursor(10, 0);
-
 	display1.println(F("Temp"));
-	display1.println(temp);
+	display1.setCursor(5, 12);
+	display1.setTextSize(5);
+	display1.printf("%.1f", temp);
 
-	display2.println(F("Humidity"));
-	display2.println(hum);
+	display1.setCursor(0, 12);
 
+
+	display1.drawLine(0, HEIGHT-1, WIDTH, HEIGHT-1, SSD1306_WHITE);
 
 	display1.display();      // Show initial text
-	display2.display();      // Show initial text
 
-
-
-
-	delay(3000); //Delay 2 sec.
-}
-
-void testdrawline()
-{
-	int16_t i;
-
-	display2.clearDisplay(); // Clear display buffer
-
-	for (i = 0; i < WIDTH; i += 4)
-	{
-		display2.drawLine(0, 0, i, HEIGHT - 1, SSD1306_WHITE);
-		display2.display(); // Update screen with each newly-drawn line
-		delay(1);
-	}
-	for (i = 0; i < HEIGHT; i += 4)
-	{
-		display2.drawLine(0, 0, WIDTH - 1, i, SSD1306_WHITE);
-		display2.display();
-		delay(1);
-	}
-	delay(250);
-
-	display2.clearDisplay();
-
-	for (i = 0; i < WIDTH; i += 4)
-	{
-		display2.drawLine(0, HEIGHT - 1, i, 0, SSD1306_WHITE);
-		display2.display();
-		delay(1);
-	}
-	for (i = HEIGHT - 1; i >= 0; i -= 4)
-	{
-		display2.drawLine(0, HEIGHT - 1, WIDTH - 1, i, SSD1306_WHITE);
-		display2.display();
-		delay(1);
-	}
-	delay(250);
-
-	display2.clearDisplay();
-
-	for (i = WIDTH - 1; i >= 0; i -= 4)
-	{
-		display2.drawLine(WIDTH - 1, HEIGHT - 1, i, 0, SSD1306_WHITE);
-		display2.display();
-		delay(1);
-	}
-	for (i = HEIGHT - 1; i >= 0; i -= 4)
-	{
-		display2.drawLine(WIDTH - 1, HEIGHT - 1, 0, i, SSD1306_WHITE);
-		display2.display();
-		delay(1);
-	}
-	delay(250);
-
-	display2.clearDisplay();
-
-	for (i = 0; i < HEIGHT; i += 4)
-	{
-		display1.drawLine(WIDTH - 1, 0, 0, i, SSD1306_WHITE);
-		display1.display();
-		delay(1);
-	}
-	for (i = 0; i < WIDTH; i += 4)
-	{
-		display1.drawLine(WIDTH - 1, 0, i, HEIGHT - 1, SSD1306_WHITE);
-		display1.display();
-		delay(1);
-	}
-
-	delay(2000); // Pause for 2 seconds
-}
-
-void testdrawrect(void)
-{
-	display1.clearDisplay();
-
-	for (int16_t i = 0; i < HEIGHT / 2; i += 2)
-	{
-		display1.drawRect(i, i, WIDTH - 2 * i, HEIGHT - 2 * i, SSD1306_WHITE);
-		display1.display(); // Update screen with each newly-drawn rectangle
-		delay(1);
-	}
-
-	delay(2000);
-}
-
-void testfillrect(void)
-{
-	display2.clearDisplay();
-
-	for (int16_t i = 0; i < HEIGHT / 2; i += 3)
-	{
-		// The INVERSE color is used so rectangles alternate white/black
-		display2.fillRect(i, i, WIDTH - i * 2, HEIGHT - i * 2, SSD1306_INVERSE);
-		display2.display(); // Update screen with each newly-drawn rectangle
-		delay(1);
-	}
-
-	delay(2000);
-}
-
-void testdrawcircle(void)
-{
-	display1.clearDisplay();
-
-	for (int16_t i = 0; i < max(WIDTH, HEIGHT) / 2; i += 2)
-	{
-		display1.drawCircle(WIDTH / 2, HEIGHT / 2, i, SSD1306_WHITE);
-		display1.display();
-		delay(1);
-	}
-
-	delay(2000);
-}
-
-void testfillcircle(void)
-{
-	display2.clearDisplay();
-
-	for (int16_t i = max(WIDTH, HEIGHT) / 2; i > 0; i -= 3)
-	{
-		// The INVERSE color is used so circles alternate white/black
-		display2.fillCircle(WIDTH / 2, HEIGHT / 2, i, SSD1306_INVERSE);
-		display2.display(); // Update screen with each newly-drawn circle
-		delay(1);
-	}
-
-	delay(2000);
-}
-
-void testdrawroundrect(void)
-{
-	display1.clearDisplay();
-
-	for (int16_t i = 0; i < HEIGHT / 2 - 2; i += 2)
-	{
-		display1.drawRoundRect(i, i, WIDTH - 2 * i, HEIGHT - 2 * i,
-		                       HEIGHT / 4, SSD1306_WHITE);
-		display1.display();
-		delay(1);
-	}
-
-	delay(2000);
-}
-
-void testfillroundrect(void)
-{
-	display2.clearDisplay();
-
-	for (int16_t i = 0; i < HEIGHT / 2 - 2; i += 2)
-	{
-		// The INVERSE color is used so round-rects alternate white/black
-		display2.fillRoundRect(i, i, WIDTH - 2 * i, HEIGHT - 2 * i,
-		                       HEIGHT / 4, SSD1306_INVERSE);
-		display2.display();
-		delay(1);
-	}
-
-	delay(2000);
-}
-
-void testdrawtriangle(void)
-{
-	display1.clearDisplay();
-
-	for (int16_t i = 0; i < max(WIDTH, HEIGHT) / 2; i += 5)
-	{
-		display1.drawTriangle(
-		    WIDTH / 2  , HEIGHT / 2 - i,
-		    WIDTH / 2 - i, HEIGHT / 2 + i,
-		    WIDTH / 2 + i, HEIGHT / 2 + i, SSD1306_WHITE);
-		display1.display();
-		delay(1);
-	}
-
-	delay(2000);
-}
-
-void testfilltriangle(void)
-{
-	display2.clearDisplay();
-
-	for (int16_t i = max(WIDTH, HEIGHT) / 2; i > 0; i -= 5)
-	{
-		// The INVERSE color is used so triangles alternate white/black
-		display2.fillTriangle(
-		    WIDTH / 2  , HEIGHT / 2 - i,
-		    WIDTH / 2 - i, HEIGHT / 2 + i,
-		    WIDTH / 2 + i, HEIGHT / 2 + i, SSD1306_INVERSE);
-		display2.display();
-		delay(1);
-	}
-
-	delay(2000);
-}
-
-void testdrawchar(void)
-{
-	display1.clearDisplay();
-
-	display1.setTextSize(1);      // Normal 1:1 pixel scale
-	display1.setTextColor(SSD1306_WHITE); // Draw white text
-	display1.setCursor(0, 0);     // Start at top-left corner
-	display1.cp437(true);         // Use full 256 char 'Code Page 437' font
-
-	// Not all the characters will fit on the display1. This is normal.
-	// Library will draw what it can and the rest will be clipped.
-	for (int16_t i = 0; i < 256; i++)
-	{
-		if (i == '\n') display1.write(' ');
-		else          display1.write(i);
-	}
-
-	display1.display();
-	delay(2000);
-}
-
-void testdrawstyles(void)
-{
-	display2.clearDisplay();
-
-	display2.setTextSize(1);             // Normal 1:1 pixel scale
-	display2.setTextColor(SSD1306_WHITE);        // Draw white text
-	display2.setCursor(0, 0);            // Start at top-left corner
-	display2.println(F("Hello, world!"));
-
-	display2.setTextColor(SSD1306_BLACK, SSD1306_WHITE); // Draw 'inverse' text
-	display2.println(3.141592);
-
-	display2.setTextSize(2);             // Draw 2X-scale text
-	display2.setTextColor(SSD1306_WHITE);
-	display2.print(F("0x"));
-	display2.println(0xDEADBEEF, HEX);
-
-	display2.display();
-	delay(2000);
-}
-
-void testscrolltext(void)
-{
-	display1.clearDisplay();
-
-	display1.setTextSize(2); // Draw 2X-scale text
-	display1.setTextColor(SSD1306_WHITE);
-	display1.setCursor(10, 0);
-	display1.println(F("scroll"));
-	display1.display();      // Show initial text
-	delay(100);
-
-	// Scroll in various directions, pausing in-between:
-	display1.startscrollright(0x00, 0x0F);
-	delay(2000);
-	display1.stopscroll();
-	delay(1000);
-	display1.startscrollleft(0x00, 0x0F);
-	delay(2000);
-	display1.stopscroll();
-	delay(1000);
-	display1.startscrolldiagright(0x00, 0x07);
-	delay(2000);
-	display1.startscrolldiagleft(0x00, 0x07);
-	delay(2000);
-	display1.stopscroll();
-	delay(1000);
-}
-
-void testdrawbitmap(void)
-{
-	display2.clearDisplay();
-
-	display2.drawBitmap(
-	    (WIDTH  - LOGO_WIDTH ) / 2,
-	    (HEIGHT - LOGO_HEIGHT) / 2,
-	    logo_bmp, LOGO_WIDTH, LOGO_HEIGHT, 1);
-	display2.display();
-	delay(1000);
-}
-
-#define XPOS   0 // Indexes into the 'icons' array in function below
-#define YPOS   1
-#define DELTAY 2
-int tempLoop = 0;
-
-void testanimate(const uint8_t *bitmap, uint8_t w, uint8_t h)
-{
-	int8_t f, icons[NUMFLAKES][3];
-
-	// Initialize 'snowflake' positions
-	for (f = 0; f < NUMFLAKES; f++)
-	{
-		icons[f][XPOS]   = random(1 - LOGO_WIDTH, WIDTH);
-		icons[f][YPOS]   = -LOGO_HEIGHT;
-		icons[f][DELTAY] = random(1, 6);
-		Serial.print(F("x: "));
-		Serial.print(icons[f][XPOS], DEC);
-		Serial.print(F(" y: "));
-		Serial.print(icons[f][YPOS], DEC);
-		Serial.print(F(" dy: "));
-		Serial.println(icons[f][DELTAY], DEC);
-	}
-
-	for (;;)
-	{
-		// Loop forever...
-		display1.clearDisplay(); // Clear the display buffer
-		display2.clearDisplay(); // Clear the display buffer
-
-		// Draw each snowflake:
-		for (f = 0; f < NUMFLAKES; f++)
-		{
-			display1.drawBitmap(icons[f][XPOS], icons[f][YPOS], bitmap, w, h, SSD1306_WHITE);
-			display2.drawBitmap(icons[f][YPOS], icons[f][XPOS], bitmap, w, h, SSD1306_WHITE);
-		}
-
-		display1.display(); // Show the display buffer on the screen
-		display2.display(); // Show the display buffer on the screen
-		delay(200);        // Pause for 1/10 second
-
-		// Then update coordinates of each flake...
-		for (f = 0; f < NUMFLAKES; f++)
-		{
-			icons[f][YPOS] += icons[f][DELTAY];
-			// If snowflake is off the bottom of the screen...
-			if (icons[f][YPOS] >= HEIGHT)
-			{
-				// Reinitialize to a random position, just off the top
-				icons[f][XPOS]   = random(1 - LOGO_WIDTH, WIDTH);
-				icons[f][YPOS]   = -LOGO_HEIGHT;
-				icons[f][DELTAY] = random(1, 6);
-			}
-		}
-
-		// At roll over displat temp and humidity
-		if( tempLoop++ > 100 )
-		{
-			tempLoop = 0;
-			return;
-		}
-	}
+	delay(2000); //Delay 2 sec.
 }
 
 
 
+//////////////////////////////////////////////////////////////////////
+// Scan I2C for devices
 void ScanI2C()
 {
 	byte error, address;
