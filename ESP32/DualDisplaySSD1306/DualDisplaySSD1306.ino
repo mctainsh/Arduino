@@ -11,13 +11,24 @@
 #define OLED_RESET     	4 				// Reset pin # (or -1 if sharing Arduino reset pin)
 #define WIDTH 			((int16_t)128) 	// OLED display width, in pixels
 #define HEIGHT 			((int16_t)64) 	// OLED display height, in pixels
-#define WIFI_SSID		""
+#define WIFI_SSID		"RhinoNBN"
 #define WIFI_PWD		""
+#define DEPTH			48
+#define DEBUG			true
 
 //Variables
 DHT dht(DHTPIN, DHTTYPE); 	// Initialize DHT sensor for normal 16mhz Arduino
 int chk;
 String _jsonLine;
+
+// Local weather
+float _insideTemp;
+float _insideHumidity;
+int _nextInsideRead;
+
+// Outside weather (Debugging)
+float _air_temp[DEPTH+1] = { 23.7, 24.7, 24.3, 25.4, 25.5, 25.1, 25.9, 26.7, 26.7, 27.3, 26.9, 26.6, 26.2, 26.2, 24.3, 24.5, 22.2, 21.5, 20.3, 19.2, 18.3, 17.4, 16.8, 17.1, 17.0, 17.3, 17.5, 17.6, 18.1, 18.6, 19.1, 19.3, 19.5, 19.4, 19.3, 19.8, 20.1, 20.2, 21.0, 21.3, 20.9, 21.2, 21.4, 21.6, 22.0, 22.8, 23.9, 25.1 }; 
+float _rel_hum [DEPTH+1] = { 51.0, 49.0, 49.0, 48.0, 47.0, 49.0, 43.0, 43.0, 42.0, 41.0, 42.0, 42.0, 46.0, 48.0, 55.0, 57.0, 60.0, 62.0, 65.0, 71.0, 75.0, 80.0, 81.0, 80.0, 81.0, 80.0, 83.0, 83.0, 83.0, 83.0, 83.0, 82.0, 83.0, 85.0, 84.0, 84.0, 84.0, 83.0, 81.0, 81.0, 81.0, 81.0, 79.0, 77.0, 72.0, 60.0, 53.0, 46.0 };
 
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 Adafruit_SSD1306 display1(WIDTH, HEIGHT, &Wire, OLED_RESET);
@@ -49,20 +60,14 @@ void setup()
 	// the library initializes this with an Adafruit splash screen.
 	display1.display();
 	display2.display();
-	delay(2000); // Pause for 2 seconds
+	delay(2000);
 }
 
 void loop()
 {
 	// Left display
-	displayTempAndHumidity();
-
-	//_jsonLine = "			\"lon\": 153.0," ;
-	//parseBOM( "\"air_temp\": " );
-	//_jsonLine = "				 \"air_temp\": 27.4,";
-	//parseBOM( "\"air_temp\": " );
-	//_jsonLine = "				\"cloud\": \"-\",";
-	//parseBOM( "\"air_temp\": " );
+	DisplayInsideWeather();
+	delay(1000);
 
 	// Right Diaplay
 	if(WiFi.status() == WL_CONNECTED)
@@ -75,7 +80,6 @@ void loop()
 	delay(1000);
 	display1.invertDisplay(false);
 	delay(10000);
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////
@@ -128,6 +132,9 @@ void displayOutsideWeather()
 		return;
 	}
 
+	// Display the latest reading
+	DisplayOutsideTempAndHumidity();
+
 	// Read every 10 minutes
 	if( _nextMills > millis() )
 		return;
@@ -178,6 +185,7 @@ void displayOutsideWeather()
 	// "rel_hum": 38,
 	// "wind_dir": "ENE",
 	// "wind_spd_kmh": 11,
+	int depth = 0;
 	String air_temp = "";
 	String rel_hum = "";
 	while(client.available())
@@ -187,24 +195,53 @@ void displayOutsideWeather()
 		parseBOM( "\"rel_hum\": ", &rel_hum );
 		if( air_temp != "" && rel_hum != "" )
 		{
-			display2.println(air_temp);
-			display2.println(rel_hum);
-			break;
+			_air_temp[depth] = air_temp.toFloat();
+			_rel_hum[depth] = rel_hum.toFloat();
+			depth++;
+			if( depth >= DEPTH )
+				break;
+			air_temp = "";
+			rel_hum = "";
 		}
 		Serial.printf( "READLINE(%d) %s\r\n", millis(), _jsonLine.c_str());
 	}
 	client.stop();
+
+	// Clean out the rest
+	while(depth < DEPTH)
+	{
+		_air_temp[depth] = 0.0f;
+		_rel_hum[depth] = 0.0f;
+		depth++;
+	}
+
+	// Debug dump the data sets
+	for( int n = 0; n < DEPTH; n++)
+		Serial.printf( "%.1f, ", _air_temp[n]);	
+	Serial.println();
+	for( int n = 0; n < DEPTH; n++)
+		Serial.printf( "%.1f, ", _rel_hum[n]);	
+
+	DisplayOutsideTempAndHumidity();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Show siomple current temp and humiddity
+void DisplayOutsideTempAndHumidity()
+{
+	displaySetup(&display2);
+	ShowWeather(&display2, _air_temp[0], _rel_hum[0]);
 	display2.display();
 }
 
 ///////////////////////////////////////////////////////////////////////////
 // Reset the dis[play to start a new draw
-void displaySetup( Adafruit_SSD1306* d)
+void displaySetup( Adafruit_SSD1306* disp)
 {
-	d->clearDisplay();
-	d->setTextSize(2);
-	d->setTextColor(SSD1306_WHITE);
-	d->setCursor(0, 0);
+	disp->clearDisplay();
+	disp->setTextSize(2);
+	disp->setTextColor(SSD1306_WHITE);
+	disp->setCursor(0, 0);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -241,40 +278,49 @@ void parseBOM( const char* field, String *output )
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Display local Temp and Humidity
-void displayTempAndHumidity()
+void DisplayInsideWeather()
 {
-	//Read data and store it to variables hum and temp
-	float hum = dht.readHumidity();
-	float temp = dht.readTemperature();
-	//Print temp and humidity values to serial monitor
-	Serial.print("Humidity: ");
-	Serial.print(hum);
-	Serial.print(" %, Temp: ");
-	Serial.print(temp);
-	Serial.println(" Celsius");
+	if( _nextInsideRead < millis() )
+	{
+		_insideTemp = dht.readTemperature();
+		_insideHumidity = dht.readHumidity();
+		_nextInsideRead =  millis() + 10 * 1000;
+		Serial.printf("Temp:%f, Humidity:%f%%\r\n", _insideTemp, _insideHumidity);
+	}
 
-
-
-	display1.clearDisplay();
-
-	display1.setTextSize(1); // Draw 2X-scale text
-	display1.setTextColor(SSD1306_WHITE);
-	display1.setCursor(10, 0);
-	display1.println(F("Temp"));
-	display1.setCursor(5, 12);
-	display1.setTextSize(5);
-	display1.printf("%.1f", temp);
-
-	display1.setCursor(0, 12);
-
-
-	display1.drawLine(0, HEIGHT-1, WIDTH, HEIGHT-1, SSD1306_WHITE);
-
-	display1.display();      // Show initial text
-
-	delay(2000); //Delay 2 sec.
+	displaySetup(&display1);
+	ShowWeather(&display1, _insideTemp, _insideHumidity);
+	display1.display();
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// Show thr readings
+void ShowWeather(Adafruit_SSD1306 *disp, float temperature, float humidity )
+{
+	disp->setTextSize(4);
+
+	// Readings
+	disp->setCursor(0, 20);
+	if( !isnan(temperature) )
+		disp->printf("%.0f", temperature);
+	disp->setCursor(65, 20);
+	if( !isnan(humidity))
+		disp->printf("%.0f", humidity);
+
+	// Units
+	disp->setTextSize(2);
+	disp->setCursor(47, 20);
+	disp->print("C");
+	disp->setCursor(114, 20);
+	disp->print("%");
+
+	// Sub titles
+	disp->setTextSize(1);
+	disp->setCursor(0, 56);
+	disp->print(" Temp.");
+	disp->setCursor(65, 56);
+	disp->print("Humidity");
+}
 
 
 //////////////////////////////////////////////////////////////////////
