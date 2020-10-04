@@ -9,7 +9,7 @@
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 const char* ssid = "RhinoNBN";
-const char* password = "DexterIs#1BadDog";
+const char* password = "";
 
 WebServer server(80);
 
