@@ -17,9 +17,12 @@ void displayOutsideWeather()
 	}
 
 	// Read every 10 minutes
-	if( !DEBUG && _nextMills >  millis() )
+	if( !DEBUG && _nextMills <  millis() )
+	{
 		if( !ReadWebWeatherHistory() )
 			return;
+		_nextMills = millis() + 10 * 60 * 1000;
+	}
 
 	// Every 3 seconds we display a different screen
 	switch( (millis() / 5000 )%4)

@@ -37,8 +37,6 @@ void displayNetworks()
 // List of stations is at http://www.bom.gov.au/qld/observations/brisbane.shtml
 bool ReadWebWeatherHistory()
 {
-	_nextMills = millis() + 10 * 60 * 1000;
-
 	// Read the weather
 	WiFiClient client;
 	const int httpPort = 80;
@@ -102,7 +100,8 @@ bool ReadWebWeatherHistory()
 			air_temp = "";
 			rel_hum = "";
 		}
-		Serial.printf( "READLINE(%d) %s\r\n", millis(), _jsonLine.c_str());
+		if( DEBUG )
+			Serial.printf( "READLINE '%s'", millis(), _jsonLine.c_str());
 	}
 	client.stop();
 
