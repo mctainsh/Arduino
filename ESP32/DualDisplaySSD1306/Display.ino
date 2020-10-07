@@ -42,11 +42,13 @@ void ShowWeather(Adafruit_SSD1306 *disp, float temperature, float humidity )
 int _depthDrawn = DEPTH / 2;	// 12=(/2) or 24=(/1) hourts
 float _minDraw, _maxDraw;		// Vertical ranges
 void DisplayGraph( Adafruit_SSD1306 *disp, String title, float values[DEPTH+1])
-{	
-	_minDraw =  999999;
-	_maxDraw = -999999;
+{
+	_minDraw =  999;
+	_maxDraw = -999;
 	for( int n = 0; n < _depthDrawn; n++)
 	{
+		if( isnan( values[n] ))
+			continue;
 		if( _minDraw > values[n] )
 			_minDraw = values[n];
 		if( _maxDraw < values[n] )
@@ -54,10 +56,12 @@ void DisplayGraph( Adafruit_SSD1306 *disp, String title, float values[DEPTH+1])
 	}
 
 	// Write up the title and range
+	disp->setTextSize(2);
+	disp->printf( "%.0lf", max(_minDraw, _maxDraw));
+	disp->setCursor(15,23);
 	disp->println( title);
-	disp->setTextSize(3);
-	disp->setCursor(10,HEIGHT-22);
-	disp->printf("%.0f  %.0f", _minDraw, _maxDraw);
+	disp->setCursor(0,46);
+	disp->printf( "%.0f", min(_minDraw, _maxDraw));
 
 	// Show nothing if no change
 	if( _minDraw == _maxDraw )
@@ -72,12 +76,19 @@ void DisplayGraph( Adafruit_SSD1306 *disp, String title, float values[DEPTH+1])
 	}
 
 	// Draw the line
-	int x0, y0;
+	int x0, y0 = INT_MAX;
 	for( int n = 0; n < _depthDrawn; n++)
 	{
+		if( isnan( values[n] ))
+		{
+			y0 = INT_MAX;
+			continue;
+		}
+
+		// Draw the line
 		int x1 = W(n);
 		int y1 = H(values[n]);
-		if( n != 0 )
+		if( y0 != INT_MAX )
 			disp->drawLine(x0, y0,x1,y1, SSD1306_WHITE);
 		x0 = x1;
 		y0 = y1;

@@ -12,10 +12,11 @@
 #define OLED_RESET     	4 				// Reset pin # (or -1 if sharing Arduino reset pin)
 #define WIDTH 			((int16_t)128) 	// OLED display width, in pixels
 #define HEIGHT 			((int16_t)64) 	// OLED display height, in pixels
-#define WIFI_SSID		"RhinoNBN"
+#define WIFI_SSID		"testdev"
 #define WIFI_PWD		""
 #define DEPTH			48
 #define DEBUG			false
+#define NaN				(0/0)			// Not a number
 
 //Variables
 DHT dht(DHTPIN, DHTTYPE); 	// Initialize DHT sensor for normal 16mhz Arduino
