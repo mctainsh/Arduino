@@ -10,7 +10,8 @@
 ////////////////////////////////////////////////////////////
 
 #include "HomeSpan.h"
-#include "DEV_RgbLED.h"
+#include "BarPlain.h"
+#include "BarRainbow.h"
 #include "DEV_Identify.h"
 #include "globals.h"
 
@@ -20,12 +21,15 @@ const char* MANUFACTURER = "Secure Hub";
 // Make the following unique for each device (Bridge and paring setup code)
 // Default Paring Code "46637726"
 const char* BRIDGE_NAME = "SH Bridge 01";
-const char* PARING_CODE = "88880001";		
+const char* PARING_CODE = "88880001";
 //const char* BRIDGE_NAME = "SH Bridge 02";
-//const char* PARING_CODE = "88880002";	
+//const char* PARING_CODE = "88880002";
 //const char* BRIDGE_NAME = "SH Bridge 03";
-//const char* PARING_CODE = "88880003";		
-	
+//const char* PARING_CODE = "88880003";
+
+SpanCharacteristic *_rainbowPower;
+SpanCharacteristic *_plainPower;
+
 
 void onWifiLoaded();
 
@@ -47,14 +51,12 @@ void setup()
 
 	Serial.begin(115200);
 
-//	_display.Show("Setup bridges");
-	Serial.printf("JRM:Starting V1.01.01\n");
+	Serial.printf("JRM:Starting V1.02 %s\n", PARING_CODE);
 
 	// Setup control and display pins
-	homeSpan.setStatusPin(9);		// 9 Is blue, 10 is red
-	//homeSpan.setStatusAutoOff(30);	// Turn off staqtus LED after 30 seconds
-	homeSpan.setControlPin(18);
-	//homeSpan.setQRID("");
+	homeSpan.setStatusPin(10);		// 9 Is blue, 10 is red
+	homeSpan.setStatusAutoOff(30);	// Turn off staqtus LED after 30 seconds
+	homeSpan.setControlPin(9);		// 18 is nearest GND, 9 is PRG Button
 
 	// Setup the parting code (Should be unique on the network)
 	homeSpan.setPairingCode(PARING_CODE);
@@ -70,24 +72,15 @@ void setup()
 		new Service::HAPProtocolInformation();
 		new Characteristic::Version("1.1.0");
 
-	//new SpanAccessory();
-	//new DEV_Identify("On/Off LED",MANUFACTURER,SERIAL_NO,"20mA LED","0.9",0);
-	//new DEV_LED(16);                                                               // Create an On/Off LED attached to pin 16
-
-	//new SpanAccessory();
-	//new DEV_Identify("Dimmable LED",MANUFACTURER,SERIAL_NO,"20mA LED","0.9",0);
-	//new DEV_DimmableLED(17);                                                       // Create a Dimmable (PWM-driven) LED using attached to pin 17
-
 	new SpanAccessory(false);
 		new DEV_Identify("Plain Strip",MANUFACTURER,SERIAL_NO,"TTGO NeoPixel","0.9",0);
-		new DEV_RgbLED(false);                                                      
+		new BarPlain();
 
 	new SpanAccessory();
 		new DEV_Identify("Gay Strip",MANUFACTURER,SERIAL_NO,"TTGO NeoPixel","0.9",0);
-		new DEV_RgbLED(true);                                                      
+		new BarRainbow();
 
 	Serial.printf("JRM:Status LED:%d\n", homeSpan.getStatusPin() );
-//	_display.Show("Loaded");
 
 } // end of setup()
 
@@ -102,6 +95,4 @@ void loop()
 void onWifiLoaded()
 {
 	_neoPixel.Off();
-//	_display.Wifi = true;
-//	_display.Refresh();
 }

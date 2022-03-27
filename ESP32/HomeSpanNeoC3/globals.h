@@ -1,6 +1,7 @@
 #pragma once
-//#include "Display.h"
 #include "NeoPixel.h"
 
-//extern Display _display;
 extern NeoPixel _neoPixel;
+
+// Maximum power is 255. 50 is a good value
+#define MAX_POWER	(127)

@@ -20,14 +20,18 @@
 #define LED_PIN    2		// WAS 6
 
 // How many NeoPixels are attached to the Arduino?
-#define LED_COUNT 300
+#define LED_COUNT 107
 
 class NeoPixel : public Adafruit_NeoPixel
 {
-private:
-	int _wipePosition = 0;
-	int32_t _currentColor;
-	unsigned long _lockOutTime;			// Time then no animation should occur
+	public :
+		enum BarMode { off, plain, rainbowBar, dawn };
+
+	private:
+		int _wipePosition = 0;
+		int32_t _currentColor;
+		unsigned long _lockOutTime;			// Time then no animation should occur
+		BarMode _mode = BarMode::off;
 
 public:
 
@@ -65,6 +69,20 @@ public:
 		setBrightness(0);
 		clear();
 		show();
+		SetMode(BarMode::off);
+	}
+
+	void SetMode(BarMode mode)
+	{
+		_mode = mode;
+	}
+
+	void Loop()
+	{
+		switch( _mode )
+		{
+			case rainbowBar : RainbowLoop(); break;
+		}
 	}
 
 	void Fill( int r, int g, int b, int count )
@@ -136,21 +154,31 @@ public:
 			setPixelColor(n, c);
 
 
-		//Serial.printf("F=%f, R=%f, G=%f, B=%f, fr=%d, fg=%d, fb=%d\r\n", f, r, g, b,f*r, f*g, f*b );
+			//Serial.printf("F=%f, R=%f, G=%f, B=%f, fr=%d, fg=%d, fb=%d\r\n", f, r, g, b,f*r, f*g, f*b );
 
-			
+
 		}
 		show();
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////
 	// Rainbow cycle along whole strip. from 0 to 65536
-	void Rainbow()
+	void RainbowLoop()
 	{
-		_currentColor+= 255;
-		//if( _currentColor % 50
+		// Increment and fix colour alignment
+		_currentColor+= 5;
+		if( _currentColor % 5 )
+			_currentColor = 0;
+
+		// Only update every 50
+		if( _currentColor % 250)
+			return;
+
+		// Wrap colours
 		if( 0 > _currentColor || _currentColor > 65536 )
 			_currentColor = 0;
+
+		// Apply
 		rainbow(_currentColor);
 		show();
 	}
