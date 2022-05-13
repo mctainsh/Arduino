@@ -56,10 +56,11 @@ The following **optional** `homeSpan` methods override various HomeSpan initiali
   
 * `void setLogLevel(uint8_t level)`
   * sets the logging level for diagnostic messages, where:
-    * 0 = top-level status messages only (default),
-    * 1 = all status messages, and
-    * 2 = all status messages plus all HAP communication packets to and from the HomeSpan device
-  * this parameter can also be changed at runtime via the [HomeSpan CLI](CLI.md)
+    * 0 = top-level HomeSpan status messages, and any messages output by the user using `Serial.print()` or `Serial.printf()` (default)
+    * 1 = all HomeSpan status messages, and any `LOG1()` messages specified in the sketch by the user
+    * 2 = all HomeSpan status messages plus all HAP communication packets to and from the HomeSpan device, as well as all `LOG1()` and `LOG2()` messages specified in the sketch by the user
+  * note the log level can also be changed at runtime with the 'L' command via the [HomeSpan CLI](CLI.md)
+  * see [Message Logging](Logging.md) for complete details
   
 * `void reserveSocketConnections(uint8_t nSockets)`
   * reserves *nSockets* network sockets for uses **other than** by the HomeSpan HAP Server for HomeKit Controller Connections
@@ -88,12 +89,13 @@ The following **optional** `homeSpan` methods override various HomeSpan initiali
 
 The following **optional** `homeSpan` methods enable additional features and provide for further customization of the HomeSpan environment.  Unless otherwise noted, calls **should** be made before `begin()` to take effect:
 
-* `void enableOTA(boolean auth=true)`
+* `void enableOTA(boolean auth=true, boolean safeLoad=true)`
   * enables [Over-the-Air (OTA) Updating](OTA.md) of a HomeSpan device, which is otherwise disabled
   * HomeSpan OTA requires an authorizing password unless *auth* is specified and set to *false*
   * the default OTA password for new HomeSpan devices is "homespan-ota"
   * this can be changed via the [HomeSpan CLI](CLI.md) using the 'O' command
   * note enabling OTA reduces the number of HAP Controller Connections by 1
+  * OTA Safe Load will be enabled by default unless the second argument is specified and set to *false*.  HomeSpan OTA Safe Load checks to ensure that sketches uploaded to an existing HomeSpan device are themselves HomeSpan sketches, and that they also have OTA enabled.  See [HomeSpan OTA Safe Load](OTA.md#ota-safe-load) for details
 
 * `void enableAutoStartAP()`
   * enables automatic start-up of WiFi Access Point if WiFi Credentials are **not** found at boot time
@@ -146,7 +148,20 @@ The following **optional** `homeSpan` methods enable additional features and pro
 * `const char *getSketchVersion()`
   * returns the version of a HomeSpan sketch, as set using `void setSketchVersion(const char *sVer)`, or "n/a" if not set
   * can by called from anywhere in a sketch
-    
+
+* `void enableWebLog(uint16_t maxEntries, const char *timeServerURL, const char *timeZone, const char *logURL)`
+  * enables a rolling web log that displays the most recent *maxEntries* entries created by the user with the `WEBLOG()` macro.  Parameters, and their default values if unspecified, are as follows:
+    * *maxEntries* - maximum number of (most recent) entries to save.  If unspecified, defaults to 0, in which case the web log will only display status without any log entries
+    * *timeServerURL* - the URL of a time server that HomeSpan will use to set its clock upon startup after a WiFi connection has been established.  If unspecified, default to NULL, in which case HomeSpan skips setting the device clock
+    * *timeZone* - specifies the time zone to use for setting the clock.  Uses standard Unix timezone formatting as interpreted by Espressif IDF.  Note the IDF uses a somewhat non-intuitive convention such that a timezone of "UTC+5:00" *subtracts* 5 hours from UTC time, and "UTC-5:00" *adds* 5 hours to UTC time.  If *serverURL=NULL* this field is ignored; if *serverURL!=NULL* this field is required
+    * *logURL* - the URL of the log page for this device.  If unspecified, defaults to "status"
+  * example: `homeSpan.enableWebLog(50,"pool.ntp.org","UTC-1:00","myLog");` creates a web log at the URL *http<nolink>://HomeSpan-\[DEVICE-ID\].local:\[TCP-PORT\]/myLog* that will display the 50 most-recent log messages produced with the WEBLOG() macro.  Upon start-up (after a WiFi connection has been established) HomeSpan will attempt to set the device clock by calling the server "pool.ntp.org" and adjusting the time to be 1 hour ahead of UTC.
+  * when attemping to connect to *timeServerURL*, HomeSpan waits 10 seconds for a response.  If no response is received after the 10-second timeout period, HomeSpan assumes the server is unreachable and skips the clock-setting procedure.  Use `setTimeServerTimeout()` to re-configure the 10-second timeout period to another value
+  * see [Message Logging](Logging.md) for complete details
+
+* `void setTimeServerTimeout(uint32_t tSec)`
+  * changes the default 10-second timeout period HomeSpan uses when `enableWebLog()` tries set the device clock from an internet time server to *tSec* seconds
+ 
 ## *SpanAccessory(uint32_t aid)*
 
 Creating an instance of this **class** adds a new HAP Accessory to the HomeSpan HAP Database.
@@ -175,12 +190,14 @@ This is a **base class** from which all HomeSpan Services are derived, and shoul
 The following methods are supported:
 
 * `SpanService *setPrimary()`
-  * specifies that this is the primary Service for the Accessory.  Returns a pointer to the Service itself so that the method can be chained during instantiation. 
+  * specifies that this is the primary Service for the Accessory.  Returns a pointer to the Service itself so that the method can be chained during instantiation 
   * example: `(new Service::Fan)->setPrimary();`
+  * note though this functionality is defined by Apple in HAP-R2, it seems to have been deprecated and no longer serves any purpose or has any affect on the Home App
   
 * `SpanService *setHidden()`
   * specifies that this is hidden Service for the Accessory.  Returns a pointer to the Service itself so that the method can be chained during instantiation.
-  * note this does not seem to have any affect on the Home App.  Services marked as hidden still appear as normal
+  * example: `(new Service::Fan)->setHidden();`
+  * note though this functionality is defined by Apple in HAP-R2, it seems to have been deprecated and no longer serves any purpose or has any affect on the Home App
   
 * `SpanService *addLink(SpanService *svc)`
   * adds *svc* as a Linked Service.  Returns a pointer to the calling Service itself so that the method can be chained during instantiation.
@@ -221,27 +238,21 @@ This is a **base class** from which all HomeSpan Characteristics are derived, an
   * `new Characteristic::Brightness(50);`         Brightness initialized to 50
   * `new Characteristic::Brightness(50,true);`    Brightness initialized to 50; updates saved in NVS
 
-The following methods are supported:
+#### The following methods are supported for numerical-based Characteristics (e.g. *int*, *float*...):
 
 * `type T getVal<T>()`
-  * a template method that returns the **current** value of the Characteristic, after casting into the type *T* specified (e.g. *int*, *double*, etc.).  If template parameter is excluded, value will be cast to *int*.
+  * a template method that returns the **current** value of a numerical-based Characteristic, after casting into the type *T* specified (e.g. *int*, *double*, etc.).  If template parameter is excluded, value will be cast to *int*.
   * example with template specified: `double temp = Characteristic::CurrentTemperature->getVal<double>();`
   * example with template excluded : `int tilt = Characteristic::CurrentTiltAngle->getVal();`
 
 * `type T getNewVal<T>()`
-  * a template method that returns the desired **new** value to which a HomeKit Controller has requested to the Characteristic be updated.  Same casting rules as for `getVal<>()`
-  
-* `boolean updated()`
-  * returns *true* if a HomeKit Controller has requested an update to the value of the Characteristic, otherwise *false*.  The requested value itself can retrieved with `getNewVal<>()`
-  
+  * a template method that returns the desired **new** value to which a HomeKit Controller has requested the Characteristic be updated.  Same casting rules as for `getVal<>()`.  Only applicable for numerical-based Characteristics
+    
 * `void setVal(value [,boolean notify])`
-  * sets the value of the Characteristic to *value*, and, if *notify* is set to true, notifies all HomeKit Controllers of the change.  The *notify* flag is optional and will be set to true if not specified.  Setting the *notify* flag to false allows you to update a Characateristic without notifying any HomeKit Controllers, which is useful for Characteristics that HomeKit automatically adjusts (such as a countdown timer) but will be requested from the Accessory if the Home App closes and is then re-opened
+  * sets the value of a numerical-based Characteristic to *value*, and, if *notify* is set to true, notifies all HomeKit Controllers of the change.  The *notify* flag is optional and will be set to true if not specified.  Setting the *notify* flag to false allows you to update a Characateristic without notifying any HomeKit Controllers, which is useful for Characteristics that HomeKit automatically adjusts (such as a countdown timer) but will be requested from the Accessory if the Home App closes and is then re-opened
   * works with any integer, boolean, or floating-based numerical *value*, though HomeSpan will convert *value* into the appropriate type for each Characteristic (e.g. calling `setValue(5.5)` on an integer-based Characteristic results in *value*=5)
   * throws a runtime warning if *value* is outside of the min/max range for the Characteristic, where min/max is either the HAP default, or any new min/max range set via a prior call to `setRange()`
   * *value* is **not** restricted to being an increment of the step size; for example it is perfectly valid to call `setVal(43.5)` after calling `setRange(0,100,5)` on a floating-based Characteristic even though 43.5 does does not align with the step size specified.  The Home App will properly retain the value as 43.5, though it will round to the nearest step size increment (in this case 45) when used in a slider graphic (such as setting the temperature of a thermostat)
-  
-* `int timeVal()`
-  * returns time elapsed (in millis) since value of the Characteristic was last updated (whether by `setVal()` or as the result of a successful update request from a HomeKit Controller)
 
 * `SpanCharacteristic *setRange(min, max, step)`
   * overrides the default HAP range for a Characteristic with the *min*, *max*, and *step* parameters specified
@@ -260,6 +271,25 @@ The following methods are supported:
     * called more than once on the same Characteristic
   * returns a pointer to the Characteristic itself so that the method can be chained during instantiation
   * example: `(new Characteristic::SecuritySystemTargetState())->setValidValues(3,0,1,3);` creates a new Valid Value list of length=3 containing the values 0, 1, and 3.  This has the effect of informing HomeKit that a SecuritySystemTargetState value of 2 (Night Arm) is not valid and should not be shown as a choice in the Home App
+
+#### The following methods are supported for string-based Characteristics (i.e. a null-terminated C-style array of characters):
+
+* `char *getString()`
+  * equivalent to `getVal()`, but used exclusively for string-characteristics (i.e. a null-terminated array of characters)
+  
+* `char *getNewString()`
+  * equivalent to `getNewVal()`, but used exclusively for string-characteristics (i.e. a null-terminated array of characters)
+
+* `void setString(const char *value)`
+  * equivalent to `setVal(value)`, but used exclusively for string-characteristics (i.e. a null-terminated array of characters)
+
+#### The following methods are supported for all Characteristics:
+
+* `boolean updated()`
+  * returns *true* if a HomeKit Controller has requested an update to the value of the Characteristic, otherwise *false*.  The requested value itself can retrieved with `getNewVal<>()` or `getNewString()`
+
+* `int timeVal()`
+  * returns time elapsed (in millis) since value of the Characteristic was last updated (whether by `setVal()`, `setString()` or as the result of a successful update request from a HomeKit Controller)
 
 * `SpanCharacteristic *setPerms(uint8_t perms)`
   * changes the default permissions for a Characteristic to *perms*, where *perms* is an additive list of permissions as described in HAP-R2 Table 6-4.  Valid values are PR, PW, EV, AA, TW, HD, and WR
@@ -313,43 +343,57 @@ HomeSpan automatically calls the `button(int pin, int pressType)` method of a Se
   
 HomeSpan will report a warning, but not an error, during initialization if the user had not overridden the virtual button() method for a Service contaning one or more Buttons; triggers of those Buttons will simply ignored.
 
-## *SpanUserCommand(char c, const char \*s, void (\*f)(const char \*v))*
+### *SpanUserCommand(char c, const char \*desc, void (\*f)(const char \*buf [,void \*obj]) [,void \*userObject])*
 
 Creating an instance of this **class** adds a user-defined command to the HomeSpan Command-Line Interface (CLI), where:
 
   * *c* is the single-letter name of the user-defined command
-  * *s* is a description of the user-defined command that is displayed when the user types '?' into the CLI
-  * *f* is a pointer to a user-defined function that is called when the command is invoked.  This function must be of the form `void f(const char *v)`, where *v* points to all characters typed into the CLI, beginning with the single-letter command name *c*.
+  * *desc* is a description of the user-defined command that is displayed when the user types '?' into the CLI
+  * *f* is a pointer to a user-defined function that is called when the command is invoked.  Allowable forms for *f* are:
+    1. `void f(const char *buf)`, or
+    1. `void f(const char *buf, void *obj)`
+  * *userObject* is a pointer to an arbitrary object HomeSpan passes to the function *f* as the second argument when the second form of *f* is used.  Note it is an error to include *userObject* when the first form of *f* is used, and it is similarly an error to exclude *userObject* when the second form of *f* is used
 
-To invoke this command from the CLI, preface the single-letter name *c* with '@'.  This allows HomeSpan to distinguish user-defined commands from its built-in commands.  For example, `new SpanUserCommand('s', "save current configuration",saveConfig)` would add a new command '@s' to the CLI with description "save current configuration" that will call the user-defined function `void saveConfig(const char *v)` when invoked.  The argument *v* points to an array of all characters typed into the CLI after the '@'.  This allows the user to pass arguments from the CLI to the user-defined function.  For example, typing '@s123' into the CLI sets *v* to "s123" when saveConfig is called. 
+To invoke your custom command from the CLI, preface the single-letter name *c* with '@'.  This allows HomeSpan to distinguish user-defined commands from its built-in commands.  For example,
+
+```C++
+new SpanUserCommand('s', "save current configuration", saveConfig);
+...
+void saveConfig(const char *buf){ ... };
+```
+
+would add a new command '@s' to the CLI with description "save current configuration" that will call the user-defined function `void saveConfig(const char *buf)` when invoked.  The argument *buf* points to an array of all characters typed into the CLI after the '@'.  This allows the user to pass arguments from the CLI to the user-defined function.  For example, typing '@s123' into the CLI sets *buf* to "s123" when saveConfig is called.
+
+In the second form of the argument, HomeSpan will pass an additional object to your function *f*.  For example,
+
+```C++
+struct myConfigurations[10];
+new SpanUserCommand('s', "<n> save current configuration for specified index, n", saveConfig, myConfigurations);
+...
+void saveConfig(const char *buf, void *obj){ ... do something with myConfigurations ... };
+```
+
+might be used to save all the elements in *myArray* when called with just the '@s' command, and perhaps save only one element based on an index added to the command, such as '@s34' to save element 34 in *myArray*.  It is up to the user to create all necessary logic within the function *f* to parse and process the full command text passed in *buf*, as well as act on whatever is being passed via *obj.
 
 To create more than one user-defined command, simply create multiple instances of SpanUserCommand, each with its own single-letter name.  Note that re-using the same single-letter name in an instance of SpanUserCommand over-rides any previous instances using that same letter.
 
-## User Macros
+## Custom Characteristics and Custom Services Macros
 
-### *#define REQUIRED VERSION(major,minor,patch)*
+### *CUSTOM_CHAR(name,uuid,perms,format,defaultValue,minValue,maxValue,staticRange)*
+### *CUSTOM_CHAR_STRING(name,uuid,perms,defaultValue)*
 
-If REQUIRED is defined in the main sketch *prior* to including the HomeSpan library with `#include "HomeSpan.h"`, HomeSpan will throw a compile-time error unless the version of the library included is equal to, or later than, the version specified using the VERSION macro.  Example:
-
-```C++
-#define REQUIRED VERSION(1,3,0)   // throws a compile-time error unless HomeSpan library used is version 1.3.0 or later
-#include "HomeSpan.h"
-```
-### *#define CUSTOM_CHAR(name,uuid,perms,format,defaultValue,minValue,maxValue,staticRange)*
-### *#define CUSTOM_CHAR_STRING(name,uuid,perms,defaultValue)*
-
-Creates a custom Characteristic that can be added to any Service.  Custom Characteristics are generally ignored by the Home App but may be used by other third-party applications (such as Eve for HomeKit).  The first form should be used create numerical Characterstics (e.g., UINT8, BOOL...). The second form is used to String-based Characteristics. Parameters are as follows (note that quotes should NOT be used in any of the macro parameters, except for defaultValue):
+Creates a custom Characteristic that can be added to any Service.  Custom Characteristics are generally ignored by the Home App but may be used by other third-party applications (such as *Eve for HomeKit*).  The first form should be used create numerical Characterstics (e.g., UINT8, BOOL...). The second form is used to String-based Characteristics. Parameters are as follows (note that quotes should NOT be used in any of the macro parameters, except for *defaultValue* when applied to a STRING-based Characteristic):
 
 * *name* - the name of the custom Characteristic.  This will be added to the Characteristic namespace so that it is accessed the same as any HomeSpan Characteristic
 * *uuid* - the UUID of the Characteristic as defined by the manufacturer.  Must be *exactly* 36 characters in the form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX, where *X* represent a valid hexidecimal digit.  Leading zeros are required if needed as described more fully in HAP-R2 Section 6.6.1
 * *perms* - additive list of permissions as described in HAP-R2 Table 6-4.  Valid values are PR, PW, EV, AA, TW, HD, and WR
-* *format* - specifies the format of the Characteristic value, as described in HAP-R2 Table 6-5.  Valid value are BOOL, UINT8, UINT16, UNIT32, UINT64, INT, and FLOAT. Note that the HomeSpan does not presently support the TLV8 or DATA formats.  Not applicable for Strings-based Characteristics
+* *format* - specifies the format of the Characteristic value, as described in HAP-R2 Table 6-5.  Valid value are BOOL, UINT8, UINT16, UNIT32, UINT64, INT, and FLOAT (note that the HomeSpan does not presently support the TLV8 or DATA formats).  Not applicable for Strings-based Characteristics
 * *defaultValue* - specifies the default value of the Characteristic if not defined during instantiation
 * *minValue* - specifies the default minimum range for a valid value, which may be able to be overriden by a call to `setRange()`.  Not applicable for Strings-based Characteristics
 * *minValue* - specifies the default minimum range for a valid value, which may be able to be overriden by a call to `setRange()`. Not applicable for Strings-based Characteristics
 * *staticRange* - set to *true* if *minValue* and *maxValue* are static and cannot be overridden with a call to `setRange()`.  Set to *false* if calls to `setRange()` are allowed.  Not applicable for Strings-based Characteristics
 
-As an example, the first line below creates a custom Characteristic named "Voltage" with a UUID code that is recognized by Eve for HomeKit.  The parameters show that the Characteristic is read-only (PR) and notifications are enabled (EV).  The default range of allowed values is 0-240, with a default of 120.  The range *can* be overridden by subsequent calls to `setRange()`.  The second line below creates a custom read-only String-based Characteristic:
+As an example, the first line below creates a custom Characteristic named "Voltage" with a UUID code that is recognized by the *Eve for HomeKit* app.  The parameters show that the Characteristic is read-only (PR) and notifications are enabled (EV).  The default range of allowed values is 0-240, with a default of 120.  The range *can* be overridden by subsequent calls to `setRange()`.  The second line below creates a custom read-only String-based Characteristic:
 
 ```C++
 CUSTOM_CHAR(Voltage, E863F10A-079E-48FF-8F27-9C2605A29F52, PR+EV, UINT16, 120, 0, 240, false);
@@ -365,9 +409,44 @@ new Service::LightBulb();
 
 Note that Custom Characteristics must be created prior to calling `homeSpan.begin()`
 
-> Advanced Tip: When presented with an unrecognized Custom Characteristic, Eve for HomeKit helpfully displays a *generic control* allowing you to interact with any Custom Characteristic you create in HomeSpan.  However, since Eve does not recognize the Characteristic, it will only render the generic control if the Characteristic includes a **description** field, which you can add to any Characteristic using the `setDescription()` method described above.  You may also want to use `setUnit()` and `setRange()` so that the Eve App displays a control with appropriate ranges for your Custom Characteristic.
+> Advanced Tip: When presented with an unrecognized Custom Characteristic, *Eve for HomeKit* helpfully displays a *generic control* allowing you to interact with any Custom Characteristic you create in HomeSpan.  However, since Eve does not recognize the Characteristic, it will only render the generic control if the Characteristic includes a **description** field, which you can add to any Characteristic using the `setDescription()` method described above.  You may also want to use `setUnit()` and `setRange()` so that the Eve App displays a control with appropriate ranges for your Custom Characteristic.
 
----
+### *CUSTOM_SERV(name,uuid)*
+
+Creates a custom Service for use with third-party applications (such as *Eve for HomeKit*).  Custom Services will be displayed in the native Apple Home App with a Tile labeled "Not Supported", but otherwise the Service will be safely ignored by the Home App.  Parameters are as follows (note that quotes should NOT be used in either of the macro parameters):
+
+* *name* - the name of the custom Service.  This will be added to the Service namespace so that it is accessed the same as any HomeSpan Service.  For example, if *name*="Vent", HomeSpan would recognize `Service::Vent` as a new service class
+* *uuid* - the UUID of the Service as defined by the manufacturer.  Must be *exactly* 36 characters in the form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX, where *X* represent a valid hexidecimal digit.  Leading zeros are required if needed as described more fully in HAP-R2 Section 6.6.1
+
+Custom Services may contain a mix of both Custom Characteristics and standard HAP Characteristics, though since the Service itself is custom, the Home App will ignore the entire Service even if it contains some standard HAP Characterstics.  Note that Custom Services must be created prior to calling `homeSpan.begin()`
+
+A fully worked example showing how to use both the ***CUSTOM_SERV()*** and ***CUSTOM_CHAR()*** macros to create a Pressure Sensor Accessory that is recognized by *Eve for HomeKit* can be found in the Arduino IDE under [*File → Examples → HomeSpan → Other Examples → CustomService*](../Other%20Examples/CustomService).
+
+## Other Macros
+
+### *SPAN_ACCESSORY()* and *SPAN_ACCESSORY(NAME)*
+ 
+A "convenience" macro that implements the following very common code snippet used when creating Accessories.  The last line is only included if *NAME* (a C-style string) has been included as an argument to the macro:
+
+```C++
+new SpanAccessory();
+ new Service::AccessoryInformation();
+ new Characteristic::Identify();
+ new Characteristic::Name(NAME);   // included only in the second form of the macro
+```
+
+## User-Definable Macros
+ 
+### *#define REQUIRED VERSION(major,minor,patch)*
+
+If REQUIRED is defined in the main sketch *prior* to including the HomeSpan library with `#include "HomeSpan.h"`, HomeSpan will throw a compile-time error unless the version of the library included is equal to, or later than, the version specified using the VERSION macro.  Example:
+
+```C++
+#define REQUIRED VERSION(1,3,0)   // throws a compile-time error unless HomeSpan library used is version 1.3.0 or later
+#include "HomeSpan.h"
+```
+
+ ---
 
 #### Deprecated functions (available for backwards compatibility with older sketches):
 
