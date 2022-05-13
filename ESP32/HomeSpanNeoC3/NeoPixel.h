@@ -20,8 +20,8 @@
 #define LED_PIN    2		// WAS 6
 
 // How many NeoPixels are attached to the Arduino?
-#define LED_COUNT 107
-
+#define LED_COUNT 108		// Home Bed
+//#define LED_COUNT 300		// Long strip
 class NeoPixel : public Adafruit_NeoPixel
 {
 	public :

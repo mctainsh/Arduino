@@ -4,7 +4,7 @@ extern SpanCharacteristic *_rainbowPower;
 extern SpanCharacteristic *_plainPower;
 
 struct BarRainbow : Service::LightBulb         // RGB LED (Command Cathode)
-{	
+{
 	//SpanCharacteristic *power;                   // reference to the On Characteristic
 	SpanCharacteristic *V;                       // reference to the Brightness Characteristic
 
@@ -21,39 +21,53 @@ struct BarRainbow : Service::LightBulb         // RGB LED (Command Cathode)
 		Serial.printf("Configured Gay LED\n");
 
 	}
-	
+
 	/////////////////////////////////////////////////////////////////////////////////////////////////
 	// Update from Apple
-	boolean update() 
+	boolean update()
 	{
+		// Only turn on if we didn't just turn on the _plainBar
+//		unsigned long timeSincePlainOn = millis() - _plainBarOnTime;
+//		Serial.printf("Since plain on = %ld \n", timeSincePlainOn);
+//		if( timeSincePlainOn < 1000 )
+//		{
+//			return(false);
+//		}
+
+		// Get the values
 		float v = 0;
 
 		v=V->getVal<float>();                      // though H and S are defined as FLOAT in HAP, V (which is brightness) is defined as INT, but will be re-cast appropriately
 
 		boolean powerOn=_rainbowPower->getVal();
-		Serial.printf("INPUT  V=%.0f Pwr=%d \n", v, powerOn);
+		Serial.printf("Original GAY V=%.0f Pwr=%d \n", v, powerOn);
 
 		// Get the new brightness
 		if(V->updated())
 		{
 			v=V->getNewVal<float>();
-			Serial.printf("New Brightness%.2f \n", v);
+			Serial.printf("New GAY Brightness%.2f \n", v);
 		}
 
 		// Power setup
 		if(_rainbowPower->updated())
 		{
 			powerOn=_rainbowPower->getNewVal();
-			Serial.printf("New P:%d \n", powerOn);
+			Serial.printf("New GAY P:%d \n", powerOn);
 			if( powerOn )
-			{			
+			{
+				_barOnTime = millis();
+				// Setup for rainbow bar
 				_neoPixel.SetMode( NeoPixel::BarMode::rainbowBar);
-				_plainPower->setVal(false);	
+				_plainPower->setVal(false);
 				_neoPixel.setBrightness((int)(MAX_POWER*(v/100.0)));
 			}
 			else
 			{
-				_neoPixel.Off();
+				unsigned long offDelay = millis() - _barOnTime;
+				Serial.printf("OFF GAY %ld \n", offDelay);
+				if( offDelay > 200 )
+					_neoPixel.Off();
 				return(true);
 			}
 		}

@@ -35,38 +35,45 @@ struct BarPlain : Service::LightBulb         // RGB LED (Command Cathode)
 		float v = 0;
 		float h = 0;
 		float s = 0;
-		
+
 		h=H->getVal<float>();                      // get and store all current values.  Note the use of the <float> template to properly read the values
 		s=S->getVal<float>();
 		v=V->getVal<float>();                      // though H and S are defined as FLOAT in HAP, V (which is brightness) is defined as INT, but will be re-cast appropriately
 
 		_powerOn=_plainPower->getVal();
-		Serial.printf("INPUT  H=%.0f S=%.0f V=%.0f Pwr=%d \n", h, s, v, _powerOn);
+		Serial.printf("Original PLAIN H=%.0f S=%.0f V=%.0f Pwr=%d \n", h, s, v, _powerOn);
 
 		// Get the new brightness
 		if(V->updated())
 		{
 			v=V->getNewVal<float>();
-			Serial.printf("New Brightness%.2f \n", v);
+			Serial.printf("New PLAIN Brightness%.2f \n", v);
 		}
 
 		// Power setup
 		if(_plainPower->updated())
 		{
 			_powerOn=_plainPower->getNewVal();
-			Serial.printf("New Plain P:%d \n", _powerOn);
+			Serial.printf("New PLAIN P:%d \n", _powerOn);
 
 			// TODO : Add minimum brightness check
 			if( _powerOn )
 			{
-				_rainbowPower->setVal(false);	
+				_barOnTime = millis();
+				// Turn off the rainbow bar
+				_rainbowPower->setVal(false);
+
+				// Activate the bar
 				_neoPixel.SetMode( NeoPixel::BarMode::plain);
 				// v is zero to 100. NeoPixel->Brightness is 0 to 255. 50 is quite bright
 				_neoPixel.setBrightness(MAX_POWER);
 			}
 			else
 			{
-				_neoPixel.Off();
+				unsigned long offDelay = millis() - _barOnTime;
+				Serial.printf("OFF PLAIN %ld \n", offDelay);
+				if( offDelay > 200 )
+					_neoPixel.Off();
 				return(true);
 			}
 		}
@@ -82,7 +89,7 @@ struct BarPlain : Service::LightBulb         // RGB LED (Command Cathode)
 
 		_neoPixel.show();
 		Serial.printf("Output H=%.0f S=%.0f V=%.0f Pwr=%d \n", h, s, v, _powerOn);
-		return(true); 
+		return(true);
 
 	}
 

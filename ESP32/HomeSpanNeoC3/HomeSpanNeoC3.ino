@@ -20,9 +20,9 @@ const char* MANUFACTURER = "Secure Hub";
 
 // Make the following unique for each device (Bridge and paring setup code)
 // Default Paring Code "46637726"
-const char* BRIDGE_NAME = "SH Bridge 01";
+const char* BRIDGE_NAME = "SH Bridge 01";	// Home bedroom LEDS = 108
 const char* PARING_CODE = "88880001";
-//const char* BRIDGE_NAME = "SH Bridge 02";
+//const char* BRIDGE_NAME = "SH Bridge 02";	// Flat floor bed 300 LEDS=300
 //const char* PARING_CODE = "88880002";
 //const char* BRIDGE_NAME = "SH Bridge 03";
 //const char* PARING_CODE = "88880003";
