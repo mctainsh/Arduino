@@ -21,24 +21,21 @@ struct DEV_Identify : Service::AccessoryInformation
 
 		this->nBlinks=nBlinks;                            // store the number of times to blink the LED
 
-		pinMode(homeSpan.getStatusPin(),OUTPUT);          // make sure LED is set for output
-
-		// JRM:Toggle pin 10
-		pinMode(10,OUTPUT);   
+		pinMode(STATUS_LED_PIN,OUTPUT);          // make sure LED is set for output
 	}
 
 	boolean update()
 	{
 		for(int i=0; i<nBlinks; i++)
 		{
-			digitalWrite(10, HIGH);    
+			digitalWrite(STATUS_LED_PIN, HIGH);
 			_neoPixel.Fill( 255,0, 0,100);
 			delay(100);
 			_neoPixel.Fill( 0, 255, 0,100);
 			delay(100);
 			_neoPixel.Fill( 0, 0, 255,100);
 			delay(100);
-			digitalWrite(10, LOW);    
+			digitalWrite(STATUS_LED_PIN, LOW);
 
 			_neoPixel.Fill( 255,0, 255,100);
 			delay(100);
@@ -46,8 +43,7 @@ struct DEV_Identify : Service::AccessoryInformation
 			delay(100);
 		}
 		_neoPixel.Off();
-		return(true);                               // return true
+		return(true);
 
-	} // update
-
+	}
 };

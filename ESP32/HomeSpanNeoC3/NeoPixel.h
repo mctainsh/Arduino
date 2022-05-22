@@ -15,23 +15,19 @@
 #include <avr/power.h> // Required for 16 MHz Adafruit Trinket
 #endif
 
-// Which pin on the Arduino is connected to the NeoPixels?
-// On a Trinket or Gemma we suggest changing this to 1:
-#define LED_PIN    2		// WAS 6
+#include "globals.h"
 
 // How many NeoPixels are attached to the Arduino?
-#define LED_COUNT 108		// Home Bed
-//#define LED_COUNT 300		// Long strip
 class NeoPixel : public Adafruit_NeoPixel
 {
-	public :
-		enum BarMode { off, plain, rainbowBar, dawn };
+public :
+	enum BarMode { off, plain, rainbowBar, dawn };
 
-	private:
-		int _wipePosition = 0;
-		int32_t _currentColor;
-		unsigned long _lockOutTime;			// Time then no animation should occur
-		BarMode _mode = BarMode::off;
+private:
+	int _wipePosition = 0;
+	int32_t _currentColor;
+	unsigned long _lockOutTime;			// Time then no animation should occur
+	BarMode _mode = BarMode::off;
 
 public:
 
@@ -81,7 +77,9 @@ public:
 	{
 		switch( _mode )
 		{
-			case rainbowBar : RainbowLoop(); break;
+			case rainbowBar :
+				RainbowLoop();
+				break;
 		}
 	}
 
@@ -97,10 +95,30 @@ public:
 		_lockOutTime = millis();
 		_currentColor = gamma32(ColorHSV( h, s, v));
 		fill(_currentColor, 0, LED_COUNT);
+		show();
+	}
+	
+	///////////////////////////////////////////////////////////////////////////////////////
+	// Fill the bar skipping every x items
+	void FillSkipping( int h, int s, int v, int on, int off )
+	{
+		_lockOutTime = millis();
+		_currentColor = gamma32(ColorHSV( h, s, v));
+		int n = 0;
+		while( n < LED_COUNT)
+		{
+			int end = n + on;
+			while( n < end )
+				setPixelColor(n++, _currentColor );
+			end = n + off;
+			while( n < end )
+				setPixelColor(n++, 0 );
+		}
+		show();
 	}
 
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Move the whipe action along one step
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Move the whipe action along one step
 	void Wipe()
 	{
 		// Are we locked out
