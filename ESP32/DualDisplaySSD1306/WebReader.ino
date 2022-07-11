@@ -10,21 +10,22 @@ void displayNetworks()
 	WiFi.disconnect();
 	delay(100);
 
-	Serial.println("* Scan start");
+	Serial.println("*** Scan start");
 
 	// WiFi.scanNetworks will return the number of networks found
 	int n = WiFi.scanNetworks();
-	Serial.println("* Scan done");
-	display2.printf("Found %d networkd\r\n", n);
+	Serial.println("*** Scan done ");
+	display2.printf("%s (%d)\r\n", WIFI_SSID, n);
 	for (int i = 0; i < n; ++i)
 	{
 		display2.println(WiFi.SSID(i));
-		Serial.print("* ");
+		Serial.print("    ");
 		Serial.println(WiFi.SSID(i));
 		delay(10);
 	}
 
 	// Kick off a connection request
+	display2.printf("Try to connect to %s \r\n", WIFI_SSID);
 	WiFi.begin(WIFI_SSID, WIFI_PWD);
 	display2.display();
 	delay(2000);
@@ -48,6 +49,7 @@ bool ReadWebWeatherHistoryJSON()
 	}
 
 	// This will send the request to the server
+	// http://www.bom.gov.au/fwo/IDQ60901/IDQ60901.94576.json
 	client.print(String("GET /fwo/IDQ60901/IDQ60901.94576.json HTTP/1.1\r\n") +
 	             "Host: www.bom.gov.au\r\n" +
 	             "Connection: keep-alive\r\n" +

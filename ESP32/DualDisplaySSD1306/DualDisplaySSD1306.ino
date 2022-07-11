@@ -1,9 +1,19 @@
+//////////////////////////////////////////////////////////////////////////////////////
+// NOTES:
+// 1: Set WIFI SSID and password below
+// 2: Setup
+//			board		ESP32 WROOM-DA Module
+// 			port 		/dev/cu.usbserial-0001
+//			CPU Freq	160 (240 worked)
+// 3: Press BOOT pin once connectings starts
+//////////////////////////////////////////////////////////////////////////////////////
 #include <math.h>
 #include <SPI.h>
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <DHT.h>
+//#include <Adafruit_Sensor.h>
 #include <WiFi.h>
 
 //Constants
@@ -12,11 +22,14 @@
 #define OLED_RESET     	4 				// Reset pin # (or -1 if sharing Arduino reset pin)
 #define WIDTH 			((int16_t)128) 	// OLED display width, in pixels
 #define HEIGHT 			((int16_t)64) 	// OLED display height, in pixels
-#define WIFI_SSID		"testdev"
-#define WIFI_PWD		""
+//#define WIFI_SSID		"RhinoNBN"
+//#define WIFI_PWD		"**************"
+#define WIFI_SSID		"M-Guest"
+#define WIFI_PWD		"BroadbandPTT2022"
 #define DEPTH			48
 #define DEBUG			false
-#define NaN				(0/0)			// Not a number
+//#define NaN				(0/0)			// Not a number
+#define NaN				(-100)			// Not a number
 
 //Variables
 DHT dht(DHTPIN, DHTTYPE); 	// Initialize DHT sensor for normal 16mhz Arduino
