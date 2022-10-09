@@ -11,7 +11,6 @@ struct DEV_Identify : Service::AccessoryInformation
 
 	DEV_Identify(const char *name, const char *manu, const char *sn, const char *model, const char *version, int nBlinks) : Service::AccessoryInformation()
 	{
-
 		new Characteristic::Name(name);                   // create all the required Characteristics with values set based on above arguments
 		new Characteristic::Manufacturer(manu);
 		new Characteristic::SerialNumber(sn);
@@ -26,6 +25,7 @@ struct DEV_Identify : Service::AccessoryInformation
 
 	boolean update()
 	{
+		digitalWrite(STRIP_POWER, HIGH);
 		for(int i=0; i<nBlinks; i++)
 		{
 			digitalWrite(STATUS_LED_PIN, HIGH);
@@ -43,6 +43,7 @@ struct DEV_Identify : Service::AccessoryInformation
 			delay(100);
 		}
 		_neoPixel.Off();
+		digitalWrite(STRIP_POWER, LOW);
 		return(true);
 
 	}

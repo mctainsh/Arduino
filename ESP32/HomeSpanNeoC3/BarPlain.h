@@ -24,7 +24,6 @@ struct BarPlain : Service::LightBulb         // RGB LED (Command Cathode)
 		V->setRange(1,100,1);                     	// sets the range of the Brightness to be from a min of 1%, to a max of 100%, in steps of 1%
 
 		Serial.printf("Configured RGB LED\n");
-
 	}
 
 	/////////////////////////////////////////////////////////////////////////////////////////////////
@@ -58,6 +57,7 @@ struct BarPlain : Service::LightBulb         // RGB LED (Command Cathode)
 			// TODO : Add minimum brightness check
 			if( _powerOn )
 			{
+				digitalWrite(STRIP_POWER, HIGH);
 				// Activate the bar
 				_neoPixel.SetMode( NeoPixel::BarMode::plain);
 				// v is zero to 100. NeoPixel->Brightness is 0 to 255. 50 is quite bright
@@ -66,6 +66,7 @@ struct BarPlain : Service::LightBulb         // RGB LED (Command Cathode)
 			}
 			else
 			{
+				digitalWrite(STRIP_POWER, LOW);
 				_neoPixel.Off();
 			}
 		}

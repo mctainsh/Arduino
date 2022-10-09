@@ -19,19 +19,22 @@ const char* MANUFACTURER = "Secure Hub";
 
 // Make the following unique for each device (Bridge and paring setup code)
 // Default Paring Code "46637726"
-//const char* BRIDGE_NAME = "SH Bridge 01";	// Home bedroom LEDS = 108
+//const char* BRIDGE_NAME = "SH Bridge 01";		// Home bedroom LEDS = 108
 //const char* PARING_CODE = "88880001";
-//const char* BRIDGE_NAME = "SH Bridge 02";	// Flat floor bed 300 LEDS=300
+//const char* BRIDGE_NAME = "SH Bridge 02";		// Flat floor bed 300 LEDS=300
 //const char* PARING_CODE = "88880002";
 //const char* BRIDGE_NAME = "SH Bridge 03";
 //const char* PARING_CODE = "88880003";
-//const char* BRIDGE_NAME = "SH Lego 01";	// Claudia's Lego #1
+//const char* BRIDGE_NAME = "SH Lego 01";		// Claudia's Lego #1
 //const char* PARING_CODE = "88880010";
-const char* BRIDGE_NAME = "Stranger Things";	// Claudia's Lego #2 Stranger times
-const char* PARING_CODE = "88880011";
+//const char* BRIDGE_NAME = "Stranger Things";	// Claudia's Lego #2 Stranger times
+//const char* PARING_CODE = "88880011";
+//const char* BRIDGE_NAME = "Farm Strip";			// Farm bed light
+//const char* PARING_CODE = "88880012";
+const char* BRIDGE_NAME = "Lego Workshop";		// Lego workshop
+const char* PARING_CODE = "88880015";
 
 SpanCharacteristic *_plainPower;
-
 
 void onWifiLoaded();
 
@@ -46,9 +49,12 @@ void setup()
 
 	Serial.begin(115200);
 
-	Serial.printf("JRM:Starting V1.18 %s\n", PARING_CODE);
+	Serial.printf("JRM:Starting V1.28 %s\n", PARING_CODE);
 
 	// Setup control and display pins
+	pinMode(STRIP_POWER, OUTPUT);
+	digitalWrite(STRIP_POWER, HIGH);
+
 	homeSpan.setStatusPin(STATUS_LED_PIN);			// 9 Is blue, 10 is red
 	homeSpan.setStatusAutoOff(30);					// Turn off staqtus LED after 30 seconds
 	homeSpan.setControlPin(CONTROL_SWITCH_PIN);		// 18 is nearest GND, 9 is PRG Button
@@ -85,5 +91,6 @@ void loop()
 
 void onWifiLoaded()
 {
+	digitalWrite(STRIP_POWER, LOW);
 	_neoPixel.Off();
 }
