@@ -5,7 +5,7 @@
 //			board		ESP32 WROOM-DA Module
 // 			port 		/dev/cu.usbserial-0001
 //			CPU Freq	160 (240 worked)
-// 3: Press BOOT pin once connectings starts
+// 3: Press and hold BOOT button until download starts
 //////////////////////////////////////////////////////////////////////////////////////
 #include <math.h>
 #include <SPI.h>
@@ -14,6 +14,8 @@
 #include <Adafruit_SSD1306.h>
 #include <DHT.h>
 //#include <Adafruit_Sensor.h>
+
+#include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 #include <WiFi.h>
 
 //Constants
@@ -24,8 +26,6 @@
 #define HEIGHT 			((int16_t)64) 	// OLED display height, in pixels
 //#define WIFI_SSID		"RhinoNBN"
 //#define WIFI_PWD		"**************"
-#define WIFI_SSID		"M-Guest"
-#define WIFI_PWD		"BroadbandPTT2022"
 #define DEPTH			48
 #define DEBUG			false
 //#define NaN				(0/0)			// Not a number
@@ -81,6 +81,22 @@ void setup()
 	display2.display();
 	delay(2000);
 }
+
+//void configModeCallback (WiFiManager *myWiFiManager) {
+//  Serial.println("Entered config mode");
+//  Serial.println(WiFi.softAPIP());
+//  Serial.println(myWiFiManager->getConfigPortalSSID());
+//}
+
+////////////////////////////////////////////////////////////////////////////////////////
+// Setup WIFI Credentials
+//void SetupWifiCredentials()
+//{
+//	Serial.println("Setup WIFI");
+//	wifiManager.startConfigPortal("DaWeatherStation");
+//	wifiManager.setAPCallback(configModeCallback);
+//	Serial.println("connected...yeey :)");
+//}
 
 ////////////////////////////////////////////////////////////////////////////////////////
 // Main loop

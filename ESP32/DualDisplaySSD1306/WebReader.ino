@@ -10,12 +10,21 @@ void displayNetworks()
 	WiFi.disconnect();
 	delay(100);
 
+	// Start the wifi connection system
+	WiFiManager wifiManager;
+	Serial.print("Config SSID: ");
+	Serial.println(wifiManager.getConfigPortalSSID());
+
+	//Serial.print("Config IP Address: ");
+	//Serial.println(WIFI.softAPIP());
+
 	Serial.println("*** Scan start");
 
 	// WiFi.scanNetworks will return the number of networks found
 	int n = WiFi.scanNetworks();
 	Serial.println("*** Scan done ");
-	display2.printf("%s (%d)\r\n", WIFI_SSID, n);
+	display2.printf("%s\r\n", wifiManager.getConfigPortalSSID());
+	display2.printf("192.168.4.1 (%d)\r\n", n);
 	for (int i = 0; i < n; ++i)
 	{
 		display2.println(WiFi.SSID(i));
@@ -24,9 +33,17 @@ void displayNetworks()
 		delay(10);
 	}
 
+	// Start the wifi credentials manager
+	if( !wifiManager.autoConnect("MagicWeather") )
+	{
+		Serial.println("WIFI Credentials manager failed");
+		ESP.restart();
+	}
+
 	// Kick off a connection request
-	display2.printf("Try to connect to %s \r\n", WIFI_SSID);
-	WiFi.begin(WIFI_SSID, WIFI_PWD);
+	//display2.printf("Try to connect to %s \r\n", WIFI_SSID);
+	// WiFi.begin(WIFI_SSID, WIFI_PWD);
+
 	display2.display();
 	delay(2000);
 }
@@ -194,7 +211,7 @@ bool ReadWebWeatherHistory()
 	while(client.available())
 	{
 		strncpy (row, client.readStringUntil('\n').c_str(), BUFFLEN);
-		
+
 		// Split the row
 		int column = 0;
 		char *str = strtok( row, s);
