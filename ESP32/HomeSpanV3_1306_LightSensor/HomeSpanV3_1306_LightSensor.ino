@@ -6,14 +6,25 @@
 #include <HTTPClient.h>
 #include <WiFi.h>
 
+#include "DHT.h"
+
 const char *ssid = "RhinoNBN";
 const char *password = "DexterIs#1BadDog";
 
-#include <Fonts/FreeMono12pt7b.h>
-#include <Fonts/FreeMono24pt7b.h>
+#include <Fonts/Picopixel.h>
+#include <Fonts/FreeMono9pt7b.h>
+
+
+// Roaming module
+//#define SENSOR_ID 0
+//#define SCREEN_HEIGHT 32
+
+// Bedroom
+#define SENSOR_ID 1
+#define SCREEN_HEIGHT 64
+
 
 #define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
 #define SCREEN_ADDRESS 0x3C //< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
 #define SDA_PIN 18
 #define SCL_PIN 19
@@ -26,11 +37,16 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #define LED_P 10	  // Yellow. Power. Near NeoPixel output
 #define INPUT_LIGHT 4 // IO4
 
+#define DHTPIN 2	  // Digital pin connected to the DHT sensor
+#define DHTTYPE DHT22 // DHT 22  (AM2302), AM2321
+
+DHT _dht(DHTPIN, DHTTYPE);
+
 void setup()
 {
 	// Setup serial ports
 	Serial.begin(115200);
-	Serial.println("Start V1.1");
+	Serial.println("Start V1.2");
 
 	WiFi.begin(ssid, password);
 
@@ -57,6 +73,8 @@ void setup()
 	display.clearDisplay();
 	display.setTextColor(SSD1306_WHITE);
 
+	_dht.begin();
+
 	display.setCursor(20, 20);
 	while (WiFi.status() != WL_CONNECTED)
 	{
@@ -68,6 +86,12 @@ void setup()
 	display.print("Connected");
 
 	Serial.println("Connected to the WiFi network");
+
+	digitalWrite(LED_B, LOW);
+	delay(500);
+	digitalWrite(LED_G, LOW);
+	delay(500);
+	digitalWrite(LED_P, LOW);
 
 	Serial.println("Setup complete");
 }
@@ -82,6 +106,13 @@ int _bufferIndex = 0;
 int _nextUpdate = 0;
 #define UPDATE_INTERVAL 60
 
+// Weather
+char _humidityStr[32], _tempStr[32];
+float _humidity;
+float _tempC;
+
+///////////////////////////////////////////////////////////////////////////////
+// Main loop
 void loop()
 {
 	int16_t x1, y1;
@@ -97,13 +128,39 @@ void loop()
 
 	// Draw count
 	sprintf(intStr, "%d:%d:%d", UPDATE_INTERVAL - timeSinceSend, _countGood, _countBad);
-	display.setFont(&FreeMono12pt7b);
-	display.getTextBounds(intStr, 0, 0, &x1, &y1, &w, &h);
-	display.setCursor(SCREEN_WIDTH - w - x1, h);
-	// display.setCursor(SCREEN_WIDTH - w, h);
+	//display.setFont(&Picopixel);
+	// display.getTextBounds(intStr, 0, 0, &x1, &y1, &w, &h);
+	// display.setCursor(SCREEN_WIDTH - w - x1, h);
+	display.setCursor(1, 1);
+	display.setTextSize(1);
 	display.print(intStr);
-	// display.printf("x:%d W%d\r\n" , x1, w);
-	// display.printf("y:%d H%d\r\n" , y1, h);
+
+	// Draw the Temp and humidity
+	_humidity = _dht.readHumidity();
+	_tempC = _dht.readTemperature();
+
+	if (isnan(_tempC))
+		sprintf(_tempStr, "--°C");
+	else
+		sprintf(_tempStr, "%.1fC", _tempC);
+	display.setCursor(1, 18);
+	display.setTextSize(2);
+	display.print(_tempStr);
+
+	if (isnan(_humidity))
+		sprintf(_humidityStr, "--");
+	else
+		sprintf(_humidityStr, "%.1f", _humidity);
+	display.setCursor(70, 18);
+	display.setTextSize(2);
+	display.print(_humidityStr);
+
+	Serial.print(F("Humidity: "));
+	Serial.print(_humidity);
+	Serial.print(F("%  Temperature: "));
+	Serial.print(_tempC);
+	Serial.print(F("°C "));
+	Serial.println();
 
 	// Average the value
 	_bufferIndex++;
@@ -120,10 +177,18 @@ void loop()
 	{
 		_nextUpdate = millis();
 		display.clearDisplay();
-		display.setCursor(10, 15);
+		display.setCursor(1, 1);
+
+		// Reeboot if we loose wifi
+		if (WiFi.status() != WL_CONNECTED)
+			ESP.restart();
 
 		char httpBuff[255];
-		sprintf(httpBuff, "http://192.168.1.7:488/api/weatherforecast/SaveLight/%d/1", mean);
+		// 0 = Roaming
+		// 1 = Bed room
+		// sprintf(httpBuff, "http://192.168.1.7:488/api/weatherforecast/SaveLight/%d/0", mean);
+		sprintf(httpBuff, "https://iSurv8.securehub.net/api/weatherforecast/SaveLight/%d/%d/%s/%s", mean, SENSOR_ID, _tempStr, _humidityStr);
+		Serial.println(httpBuff);
 		HTTPClient http;
 		http.begin(httpBuff); // Specify the URL
 		int httpCode = http.GET();
@@ -145,14 +210,15 @@ void loop()
 		http.end(); // Free the resources
 
 		// display.setCursor(SCREEN_WIDTH - w, h);
-		delay(2000);
+		delay(5000);
 	}
 
 	// Draw analog value
 	itoa(mean, intStr, 10);
-	display.setFont(&FreeMono24pt7b);
+	//display.setFont(&TomThumb);
+	display.setTextSize(1);
 	display.getTextBounds(intStr, 0, 0, &x1, &y1, &w, &h);
-	display.setCursor(SCREEN_WIDTH - w - x1, SCREEN_HEIGHT - h - y1);
+	display.setCursor(SCREEN_WIDTH - w - x1, 1);//SCREEN_HEIGHT - h - y1);
 	display.print(intStr);
 
 	// Update display
