@@ -14,7 +14,6 @@
 #include "DEV_Identify.h"
 #include "globals.h"
 
-const char* SERIAL_NO = "JRM.008.3";
 const char* MANUFACTURER = "Secure Hub";
 
 // Make the following unique for each device (Bridge and paring setup code)
@@ -31,8 +30,14 @@ const char* MANUFACTURER = "Secure Hub";
 //const char* PARING_CODE = "88880011";
 //const char* BRIDGE_NAME = "Farm Strip";			// Farm bed light
 //const char* PARING_CODE = "88880012";
-const char* BRIDGE_NAME = "Lego Workshop";		// Lego workshop
-const char* PARING_CODE = "88880015";
+//const char* BRIDGE_NAME = "Lego Workshop";		// Lego workshop
+//const char* PARING_CODE = "88880015";
+//const char* SERIAL_NO	  = "JRM.008.3";				// Chimney
+//const char* BRIDGE_NAME = "Chimney";			
+//const char* PARING_CODE = "88880016";
+const char* SERIAL_NO   = "JRM.008.17";
+const char* BRIDGE_NAME = "KitchenCabinet";				// Kitchen Cabinet
+const char* PARING_CODE = "88880017";
 
 SpanCharacteristic *_plainPower;
 
@@ -64,6 +69,7 @@ void setup()
 
 	// Setup to jump to WIFI setup if no WIFI config
 	homeSpan.enableAutoStartAP();
+	//homeSpan.setWifiCredentials("RhinoNBN", "XXXXXXXXXX");
 
 	// Start homespan
 	homeSpan.begin(Category::Bridges,BRIDGE_NAME);

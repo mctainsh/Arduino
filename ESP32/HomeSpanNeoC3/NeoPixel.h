@@ -57,7 +57,7 @@ public:
 
 		begin();           // INITIALIZE NeoPixel strip object (REQUIRED)
 		show();            // Turn OFF all pixels ASAP
-		setBrightness(50); // Set BRIGHTNESS to about 1/5 (max = 255)
+		setBrightness(MAX_POWER); // Set BRIGHTNESS to about 1/5 (max = 255)
 	}
 
 	void Off()
