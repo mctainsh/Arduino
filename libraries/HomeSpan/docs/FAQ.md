@@ -2,15 +2,21 @@
 
 *A list of answers to frequently-asked-questions, as well as discussions of various topics of interest.*
 
-#### How do I set my WiFi SSID and Password?
+#### How do I set my WiFi SSID and Password (i.e. WiFi Credentials)?
 
-* In the spirit of promoting good security practices, HomeSpan does not allow you to embed your WiFi SSID and Password (collectively known as WiFi Credentials) into your sketch.  This eliminates the possibility of accidentally disclosing this information should you share your sketch with others.
+* Though commercial HomeKit devices can automatically retrieve WiFi Credentials from an iPhone, Apple does not provide this mechanism in the non-commerical version of HomeKit used by HomeSpan.  Instead, you need to add your WiFi Credentials to a HomeSpan device using one of four methods:
 
-* Instead, HomeSpan stores your WiFi Credentials in a dedicated non-volatile storage (NVS) partition of the ESP32.  There are two ways of entering this information.  If you are developing a sketch within the Arduino IDE, simply use the HomeSpan Command Line Interface and type 'W' into the Serial Monitor.  HomeSpan will prompt you to input your WiFi SSID and Password (see [CLI](CLI.md) for details).  As an alternative, if your HomeSpan device is not connected to a computer, you can launch HomeSpan's Temporary WiFi Setup Network and input your WiFi Credentials directly into the web forms served by your device (see the [User Guide](UserGuide.md#setting-homespans-wifi-credentials-and-setup-code) for details).
+  * From within the Arduino IDE, simply use the HomeSpan Command Line Interface and type 'W' into the Serial Monitor.  HomeSpan will prompt you to input your WiFi SSID and Password.  You will only need to do this once since HomeSpan stores the WiFi Credentials you provide in the device's non-volatile storage (NVS) for use every time the device boots.  See the [HomeSpan CLI](CLI.md) for complete details.
+  
+  * As an alternative, and especially if your HomeSpan device is not connected to a computer, you can launch HomeSpan's Temporary WiFi Setup Network and input your WiFi Credentials directly into the temporary web form served by HomeSpan.  Similar to above, this only needs to be done once since HomeSpan likewise stores the WiFi Credentials you input using this method.  See the [HomeSpan User Guide](UserGuide.md#setting-homespans-wifi-credentials-and-setup-code) for details.
+
+  * If you really want to, you can programmatically set your WiFi Credentials directly in your sketch using HomeSpan's `setWifiCredentials()` method.  However, this is **not** recommended since hardcoding sensitive passwords into a sketch poses a security risk, and is generally not considered a good practice.  See the [HomeSpan API Reference](Reference.md) for details.
+
+  * Finally, for advanced users, HomeSpan provides an API hook `setApFunction()` that allows you to create your own custom method for inputting your WiFi Credentials.  See the [HomeSpan API Reference](Reference.md) for details.
 
 #### What is the Setup Code used for pairing a HomeSpan device to HomeKit?
 
-* The HomeSpan default Setup Code is 466-37-726.  You can (and should) use the HomeSpan Command Line Interface to change this default to a secret code unique for each of your devices.  Simply type 'S \<code\>' into the Serial Monitor, or specify your desired Setup Code at the outset when configuring your WiFi Credentials using HomeSpan's Temporary WiFi Setup Network.
+* The HomeSpan default Setup Code is 466-37-726.  You can (and should) use the HomeSpan Command Line Interface to change this default to a secret code unique for each of your devices.  Simply type 'S \<code\>' into the Serial Monitor, or specify your desired Setup Code at the outset when configuring your WiFi Credentials using HomeSpan's Temporary WiFi Setup Network.  Alternatively, you can programmatically set the Setup Code in your sketch using HomeSpan's `setPairingCode()` method.  However, hardcoding your Setup Code in a sketch is generally considered a security risk, as well as being inconsistent with Apple's HomeKit guidelines.
 
 #### Can you use more than one HomeSpan device on the same HomeKit network?
 
@@ -28,10 +34,6 @@
 
 * No, HomeSpan is coded specifically for the ESP32 and will not operate on an ESP8266 device.
 
-#### Will HomeSpan work on an ESP32-S2 or ESP32-C3?
-
-* Yes!  Starting with version 1.4.0, HomeSpan is fully compatible with Espressif's ESP32-S2 and ESP32-C3 chips, as well as the original ESP32 chip. Note that to select an ESP32-S2 or ESP32-C3 device from the Arduino IDE you'll need to install Version 2 of the [Arduino-ESP32 Board Manager](https://github.com/espressif/arduino-esp32).
-
 #### How can I read HomeSpan's MDNS broadcast mentioned in the [OTA](OTA.md) documentation?
 
 * HomeSpan uses MDNS (multicast DNS) to broadcast a variety of HAP information used by Controllers wishing to pair with HomeSpan.  Apple uses the name *Bonjour* to refer to MDNS, and originally included a Bonjour "Browser" in Safari that has since been discontinued.  However, there are a number of alternative MDNS browsers available for free that operate on both the Mac and the iPhone, such as the [Discovery - DNS-SD Browser](https://apps.apple.com/us/app/discovery-dns-sd-browser/id1381004916?mt=12).  You'll find all your HomeSpan devices, as well as any other HomeKit devices you may have, under the MDNS service named *_hap._tcp.*  The fields broadcast by HomeSpan are a combination of all data elements requires by HAP (HAP-R2, Table 6-7) plus three additional HomeSpan fields:
@@ -44,6 +46,10 @@
 
 * Yes.  Though undocumented by Apple and not officially part of HAP-R2, HomeSpan supports HomeKit Television controls.  See [Television Services](../docs/TVServices.md) for details.
 
+#### Can you use HomeSpan via Bluetooth?
+
+* No.  HomeSpan does not support Apple's HAP-R2 protocol for HomeKit connectivity via Bluetooth.  However, you can still use the Bluetooth radio on your device for other connectivity unrelated to HomeKit if needed.
+
 #### Can you use HomeSpan with an Ethernet connection instead of a WiFi connection?
 
 * Not as present.  Though with a compatible Ethernet board the ESP32 can be configured to run as an Ethernet Server, using MDNS over Ethernet does not work on the ESP32 due to some apparent problems with the Ethernet UDP stack.  Unfortunately, HomeSpan and HAP-R2 require MDNS to operate.  If anyone has managed to get an Ethernet version of MDNS working on an ESP32 please let me know - it would be great to add Ethernet support to HomeSpan.
@@ -54,7 +60,7 @@
 
 #### Can you add a Web Server to HomeSpan?
 
-* Yes, provided you implement your Web Server using standard ESP32-Arduino libraries, such as `WebServer.h`. See [ProgrammableHub](https://github.com/HomeSpan/ProgrammableHub) for an illustrative example of how to easily integrate a Web Server into HomeSpan.  This project also covers various other advanced topics, including TCP slot management, dynamic creation of Accessories, and saving arbitrary data in the ESP32's NVS.
+* Yes, provided you implement your Web Server using standard ESP32-Arduino libraries, such as `WebServer.h`. See [ProgrammableHub](../examples/Other%20Examples/ProgrammableHub) for an illustrative example of how to easily integrate a Web Server into HomeSpan.  This project also covers various other advanced topics, including TCP slot management, dynamic creation of Accessories, and saving arbitrary data in the ESP32's NVS.
 
 #### Can you add *custom* Services and Characteristics to HomeSpan?
 
@@ -64,7 +70,10 @@
 
 * No, a MFi license is needed to create commercial devices. HomeSpan was developed using Apple's HAP-R2 specs, which Apple provides for [non-commercial devices that won't be distributed or sold](https://developers.apple.com/homekit/faq/).  Though I believe the commercial specifications are functionally the same, there is a slight, but critical, difference in the pairing protocol between HAP-R2 and MFi. Note that when you pair a HomeSpan device (or any device that is based on HAP-R2, such as Apple's HAP-R2 ADK, Espressif's non-commercial ADK, HomeBridge, etc.) the Home App on your iPhone will flag the device as uncertified and require you to grant it permission to proceed with pairing. This warning message about the device being uncertified does not appear on commercial devices, presumably because Apple provides the licensee with a custom MFi authorization code that is recognized by the iPhone.
 
+#### Why does the Home App indicate the Doorbell Service is unsupported?
+
+* Though not documented in HAP-R2, it appears that the Doorbell Service is designed to be used in conjunction with another service, such as the Lock Mechanism.  If you add in a second service, the Home App will show the appropriate Tile (such as a Lock) with the Doorbell being the second service.  Howeveer, you can still use the Doorbell Service on a stanadlone basis --- even though the Home App says it is unsupported, a button press on the device will properly trigger a chime on your Home Pods as expected. 
 ---
 
-[↩️](README.md) Back to the Welcome page
+[↩️](../README.md) Back to the Welcome page
 

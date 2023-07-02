@@ -1,116 +1,71 @@
+/*********************************************************************************
+ *  MIT License
+ *  
+ *  Copyright (c) 2020-2023 Gregg E. Berman
+ *  
+ *  https://github.com/HomeSpan/HomeSpan
+ *  
+ *  Permission is hereby granted, free of charge, to any person obtaining a copy
+ *  of this software and associated documentation files (the "Software"), to deal
+ *  in the Software without restriction, including without limitation the rights
+ *  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *  copies of the Software, and to permit persons to whom the Software is
+ *  furnished to do so, subject to the following conditions:
+ *  
+ *  The above copyright notice and this permission notice shall be included in all
+ *  copies or substantial portions of the Software.
+ *  
+ *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *  SOFTWARE.
+ *  
+ ********************************************************************************/
 
 // This is a placeholder .ino file that allows you to easily edit the contents of this library using the Arduino IDE,
 // as well as compile and test from this point.  This file is ignored when the library is included in other sketches.
 
 #include "HomeSpan.h"
 
-#define STRING_t  const char *          // WORK-AROUND
+CUSTOM_CHAR(CharFloat, 00000001-0001-0001-0001-46637266EA00, PR+PW+EV, FLOAT, 0, 0, 100, false);
+CUSTOM_CHAR(CharUInt8, 00000009-0001-0001-0001-46637266EA00, PR+PW+EV, UINT8, 0, 0, 100, false);
+CUSTOM_CHAR(CharUInt16, 00000016-0001-0001-0001-46637266EA00, PR+PW+EV, UINT16, 0, 0, 100, false);
+CUSTOM_CHAR(CharUInt32, 00000032-0001-0001-0001-46637266EA00, PR+PW+EV, UINT32, 0, 0, 100, false);
+CUSTOM_CHAR(CharInt, 00000002-0001-0001-0001-46637266EA00, PR+PW+EV, INT, 0, 0, 100, false);
 
-CUSTOM_CHAR(LightMode, AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA, PR, STRING, "ANY_VALUE", NULL, NULL, true);
-CUSTOM_CHAR_STRING(DarkMode, AAAAAAAA-BBBB-AAAA-AAAA-AAAAAAAAAAAA, PR, "MY_VALUE");
-
+//////////////////////////////////////
+  
 void setup() {
- 
+  
   Serial.begin(115200);
- 
-  homeSpan.setLogLevel(2);
-//  homeSpan.setStatusPin(13);
-//  homeSpan.setControlPin(33);
+
+  homeSpan.setLogLevel(1);
+
+  homeSpan.begin(Category::Other,"HomeSpan Test");
+
+  new SpanAccessory();  
+    new Service::AccessoryInformation();
+      new Characteristic::Identify(); 
+    new Service::LightBulb();
+      new Characteristic::On();
+
+      (new Characteristic::CharFloat())->setValidValues(5,0,1,2,6,7,8);
+      (new Characteristic::CharUInt8())->setValidValues(5,0,1,2,6,7,8);
+      (new Characteristic::CharUInt16())->setValidValues(5,0,1<<8,1<<16,0xFFFFFFFF,-1);
+      (new Characteristic::CharUInt32())->setValidValues(5,0,1<<8,1<<16,0xFFFFFFFF,-1);
+      (new Characteristic::CharInt())->setValidValues(5,0,255,2000000000,-2000000000,-1)->setValidValues(1,2);
   
-  homeSpan.setHostNameSuffix("-lamp1");
-  homeSpan.setPortNum(1201);
-//  homeSpan.setMaxConnections(6);
-//  homeSpan.setQRID("One1");
-  homeSpan.enableOTA();
-  homeSpan.setSketchVersion("OTA Test 8");
-  homeSpan.setWifiCallback(wifiEstablished);
-
-  new SpanUserCommand('d',"- My Description",userCom1);
-  new SpanUserCommand('e',"- My second Description",userCom2);
-
-//  homeSpan.enableAutoStartAP();
-//  homeSpan.setApFunction(myWiFiAP);
-
-  homeSpan.begin(Category::Lighting,"HomeSpan Lamp Server","homespan");
-
-  new SpanAccessory();                                  // Begin by creating a new Accessory using SpanAccessory(), which takes no arguments
-
-    new Service::AccessoryInformation();                    // HAP requires every Accessory to implement an AccessoryInformation Service, which has 6 required Characteristics
-      new Characteristic::Name("HomeSpan Test");                // Name of the Accessory, which shows up on the HomeKit "tiles", and should be unique across Accessories                                                            
-      new Characteristic::Manufacturer("HomeSpan");             // Manufacturer of the Accessory (arbitrary text string, and can be the same for every Accessory)
-      new Characteristic::SerialNumber("HSL-123");              // Serial Number of the Accessory (arbitrary text string, and can be the same for every Accessory)
-      new Characteristic::Model("HSL Test");                    // Model of the Accessory (arbitrary text string, and can be the same for every Accessory)
-      new Characteristic::FirmwareRevision(HOMESPAN_VERSION);   // Firmware of the Accessory (arbitrary text string, and can be the same for every Accessory)  
-      new Characteristic::Identify();                           // Create the required Identify
-  
-    new Service::HAPProtocolInformation();                  // Create the HAP Protcol Information Service  
-      new Characteristic::Version("1.1.0");                     // Set the Version Characteristic to "1.1.0" as required by HAP
-
-    new Service::LightBulb();
-      new Characteristic::On(0);
-      new Characteristic::LightMode("HELLO");
-      new Characteristic::DarkMode();
-      new Characteristic::Brightness(50);
-      new Characteristic::Name("Light 1");
-      new Characteristic::ColorTemperature();
-      new Characteristic::Active();
-    new Service::LightBulb();
-      new Characteristic::On(0,true);
-      (new Characteristic::Brightness(50,false))->setRange(10,100,5);
-      new Characteristic::Name("Light 2");
-
-  new SpanAccessory();                                  // Begin by creating a new Accessory using SpanAccessory(), which takes no arguments
-
-    new Service::AccessoryInformation();                    // HAP requires every Accessory to implement an AccessoryInformation Service, which has 6 required Characteristics
-      new Characteristic::Name("HomeSpan Test");                // Name of the Accessory, which shows up on the HomeKit "tiles", and should be unique across Accessories                                                            
-      new Characteristic::Manufacturer("HomeSpan");             // Manufacturer of the Accessory (arbitrary text string, and can be the same for every Accessory)
-      new Characteristic::SerialNumber("HSL-123");              // Serial Number of the Accessory (arbitrary text string, and can be the same for every Accessory)
-      new Characteristic::Model("HSL Test");                    // Model of the Accessory (arbitrary text string, and can be the same for every Accessory)
-      new Characteristic::FirmwareRevision(HOMESPAN_VERSION);   // Firmware of the Accessory (arbitrary text string, and can be the same for every Accessory)  
-      new Characteristic::Identify();                           // Create the required Identify      
-
-    new Service::HAPProtocolInformation();                  // Create the HAP Protcol Information Service  
-      new Characteristic::Version("1.1.0");                     // Set the Version Characteristic to "1.1.0" as required by HAP
-
-    new Service::LightBulb();
-      new Characteristic::On(0,true);
-      (new Characteristic::Brightness(50,true))->setRange(10,100,5);
-      new Characteristic::Name("Light 3");
-      new Characteristic::TargetPosition();
-      new Characteristic::OzoneDensity();
-      (new Characteristic::OzoneDensity())->addPerms(PW|AA)->removePerms(EV|PR);
-
 } // end of setup()
 
 //////////////////////////////////////
 
 void loop(){
-
+  
   homeSpan.poll();
 
 } // end of loop()
 
 //////////////////////////////////////
-
-void myWiFiAP(){
-  Serial.print("Calling My WIFI AP\n\n");
-  homeSpan.setWifiCredentials("MY_NETWORK","MY_PASSWORD");
-}
-
-//////////////////////////////////////
-
-void wifiEstablished(){
-  Serial.print("IN CALLBACK FUNCTION\n\n");
-}
-
-//////////////////////////////////////
-
-void userCom1(const char *v){
-  Serial.printf("In User Command 1: '%s'\n\n",v);
-}
-
-//////////////////////////////////////
-
-void userCom2(const char *v){
-  Serial.printf("In User Command 2: '%s'\n\n",v);
-}

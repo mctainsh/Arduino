@@ -1,7 +1,7 @@
 /*********************************************************************************
  *  MIT License
  *  
- *  Copyright (c) 2020-2022 Gregg E. Berman
+ *  Copyright (c) 2020-2023 Gregg E. Berman
  *  
  *  https://github.com/HomeSpan/HomeSpan
  *  
@@ -29,7 +29,7 @@
 
 ///////////////////
 
-LedC::LedC(uint8_t pin, uint16_t freq){
+LedC::LedC(uint8_t pin, uint16_t freq, boolean invert){
 
   if(freq==0)
     freq=DEFAULT_PWM_FREQ;
@@ -44,10 +44,7 @@ LedC::LedC(uint8_t pin, uint16_t freq){
             timerList[nTimer][nMode]->speed_mode=(ledc_mode_t)nMode;
             timerList[nTimer][nMode]->timer_num=(ledc_timer_t)nTimer;
             timerList[nTimer][nMode]->freq_hz=freq;
-
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)
             timerList[nTimer][nMode]->clk_cfg=LEDC_USE_APB_CLK;
-#endif
             
             int res=LEDC_TIMER_BIT_MAX-1;                               // find the maximum possible resolution
             while(getApbFrequency()/(freq*pow(2,res))<1)
@@ -68,9 +65,7 @@ LedC::LedC(uint8_t pin, uint16_t freq){
             channelList[nChannel][nMode]->channel=(ledc_channel_t)nChannel;
             channelList[nChannel][nMode]->timer_sel=(ledc_timer_t)nTimer;
             channelList[nChannel][nMode]->intr_type=LEDC_INTR_DISABLE;
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 4, 0)
-            channelList[nChannel][nMode]->flags.output_invert=0;
-#endif
+            channelList[nChannel][nMode]->flags.output_invert=invert;
             channelList[nChannel][nMode]->hpoint=0;
             channelList[nChannel][nMode]->gpio_num=pin;
             timer=timerList[nTimer][nMode];
@@ -85,22 +80,26 @@ LedC::LedC(uint8_t pin, uint16_t freq){
 
 ///////////////////
 
-LedPin::LedPin(uint8_t pin, float level, uint16_t freq) : LedC(pin, freq){
-
+LedPin::LedPin(uint8_t pin, float level, uint16_t freq, boolean invert) : LedC(pin, freq, invert){
+  
   if(!channel)
     Serial.printf("\n*** ERROR:  Can't create LedPin(%d) - no open PWM channels and/or Timers ***\n\n",pin);
   else
-    Serial.printf("LedPin=%d: mode=%d channel=%d, timer=%d, freq=%d Hz, resolution=%d bits\n",
+    Serial.printf("LedPin=%d: mode=%d, channel=%d, timer=%d, freq=%d Hz, resolution=%d bits %s\n",
       channel->gpio_num,
       channel->speed_mode,
       channel->channel,
       channel->timer_sel,
       timer->freq_hz,
-      timer->duty_resolution
+      timer->duty_resolution,
+      channel->flags.output_invert?"(inverted)":""
       );
             
-  set(level);
-   
+  ledc_fade_func_install(0);
+  ledc_cbs_t fadeCallbackList = {.fade_cb = fadeCallback};                          // for some reason, ledc_cb_register requires the function to be wrapped in a structure
+  ledc_cb_register(channel->speed_mode,channel->channel,&fadeCallbackList,this);
+
+  set(level);   
 }
 
 ///////////////////
@@ -114,12 +113,54 @@ void LedPin::set(float level){
     level=100;
 
   float d=level*(pow(2,(int)timer->duty_resolution)-1)/100.0;  
+    
   channel->duty=d;
-  ledc_channel_config(channel);
-  
+  ledc_channel_config(channel); 
 }
 
 ///////////////////
+
+int LedPin::fade(float level, uint32_t fadeTime, int fadeType){
+
+  if(!channel)
+    return(1);
+
+  if(fadeState==FADING)       // fading already in progress
+    return(1);                // return error
+
+  if(level>100)
+    level=100;
+
+  float d=level*(pow(2,(int)timer->duty_resolution)-1)/100.0;
+
+  if(fadeType==PROPORTIONAL)
+    fadeTime*=fabs((float)ledc_get_duty(channel->speed_mode,channel->channel)-d)/(float)(pow(2,(int)timer->duty_resolution)-1);
+
+  fadeState=FADING;
+  ledc_set_fade_time_and_start(channel->speed_mode,channel->channel,d,fadeTime,LEDC_FADE_NO_WAIT);
+  return(0);
+}
+
+///////////////////
+
+int LedPin::fadeStatus(){
+  if(fadeState==COMPLETED){
+    fadeState=NOT_FADING;
+    return(COMPLETED);
+  }
+
+  return(fadeState);
+}
+
+///////////////////
+
+bool IRAM_ATTR LedPin::fadeCallback(const ledc_cb_param_t *param, void *arg){
+  ((LedPin *)arg)->fadeState=COMPLETED;
+  return(false);
+}
+
+///////////////////
+
 
 void LedPin::HSVtoRGB(float h, float s, float v, float *r, float *g, float *b ){
 

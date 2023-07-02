@@ -1,7 +1,7 @@
 /*********************************************************************************
  *  MIT License
  *  
- *  Copyright (c) 2020-2022 Gregg E. Berman
+ *  Copyright (c) 2020-2023 Gregg E. Berman
  *  
  *  https://github.com/HomeSpan/HomeSpan
  *  
@@ -48,7 +48,8 @@ enum FORMAT {     // HAP Table 6-5
   UINT64=4,
   INT=5,
   FLOAT=6,
-  STRING=7
+  STRING=7,
+  DATA=8
 };
 
 ///////////////////////////////
@@ -78,6 +79,7 @@ struct HapChar {
 
 struct HapCharacteristics {
   
+  HAPCHAR( AccessoryFlags, A6, PR+EV, UINT32, true );
   HAPCHAR( Active, B0, PW+PR+EV, UINT8, true );
   HAPCHAR( ActiveIdentifier, E7, PW+PR+EV, UINT32, true );
   HAPCHAR( AirQuality, 95, PR+EV, UINT8, true );
@@ -113,7 +115,7 @@ struct HapCharacteristics {
   HAPCHAR( CurrentVisibilityState, 135, PR+EV, UINT8, true );
   HAPCHAR( FilterLifeLevel, AB, PR+EV, FLOAT, false );
   HAPCHAR( FilterChangeIndication, AC, PR+EV, UINT8, true );
-  HAPCHAR( FirmwareRevision, 52, PR, STRING, true );
+  HAPCHAR( FirmwareRevision, 52, PR+EV, STRING, true );
   HAPCHAR( HardwareRevision, 53, PR, STRING, true );
   HAPCHAR( HeatingThresholdTemperature, 12, PR+PW+EV, FLOAT, false );
   HAPCHAR( HoldPosition, 6F, PW, BOOL, true );
@@ -191,7 +193,7 @@ struct HapCharacteristics {
   HAPCHAR( VOCDensity, C8, PR+EV, FLOAT, false );   
   HAPCHAR( Volume, 119, PW+PR+EV, UINT8, false );
   HAPCHAR( VolumeControlType, E9, PR+EV, UINT8, true );
-  HAPCHAR( VolumeSelector, EA, PR+EV, UINT8, true );
+  HAPCHAR( VolumeSelector, EA, PW, UINT8, true );
   HAPCHAR( WaterLevel, B5, PR+EV, FLOAT, false );
 
 };

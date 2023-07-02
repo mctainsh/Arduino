@@ -1,7 +1,7 @@
 /*********************************************************************************
  *  MIT License
  *  
- *  Copyright (c) 2020-2022 Gregg E. Berman
+ *  Copyright (c) 2020-2023 Gregg E. Berman
  *  
  *  https://github.com/HomeSpan/HomeSpan
  *  
@@ -35,7 +35,6 @@
 //  Utils::mask             - masks a string with asterisks (good for displaying passwords)
 //
 //  class PushButton        - tracks Single, Double, and Long Presses of a pushbutton that connects a specified pin to ground
-//  class Blinker           - creates customized blinking patterns on an LED connected to a specified pin
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -85,33 +84,47 @@ String Utils::mask(char *c, int n){
 //         PushButton         //
 ////////////////////////////////
 
-PushButton::PushButton(){}
-
-//////////////////////////////////////
-
-PushButton::PushButton(int pin){
-  init(pin);
-}
-
-//////////////////////////////////////
-
-void PushButton::init(int pin){
+PushButton::PushButton(int pin, triggerType_t triggerType){
 
   this->pin=pin;
-  if(pin<0)
-    return;
-
+  this->triggerType=triggerType;
+  
   status=0;
   doubleCheck=false;
-  pinMode(pin, INPUT_PULLUP);
+
+  if(triggerType==TRIGGER_ON_LOW)
+    pinMode(pin, INPUT_PULLUP);
+  else if(triggerType==TRIGGER_ON_HIGH)
+    pinMode(pin, INPUT_PULLDOWN);
+  
+#if SOC_TOUCH_SENSOR_NUM > 0
+  else if (triggerType==TRIGGER_ON_TOUCH && threshold==0){    
+    for(int i=0;i<calibCount;i++)
+      threshold+=touchRead(pin);
+    threshold/=calibCount;
+#if SOC_TOUCH_VERSION_1
+    threshold/=2;
+    Serial.printf("Touch Sensor at pin=%d used for calibration.  Triggers when sensor reading < %d.\n",pin,threshold);
+#elif SOC_TOUCH_VERSION_2
+    threshold*=2;
+    Serial.printf("Touch Sensor at pin=%d used for calibration.  Triggers when sensor reading > %d.\n",pin,threshold);
+#endif
+  }
+#endif
+
+  if(triggerType(pin)){
+    pressType=CLOSED;
+    toggleStatus=2;
+  } else {
+    pressType=OPEN;
+    toggleStatus=0;
+  }
+  
 }
 
 //////////////////////////////////////
 
 boolean PushButton::triggered(uint16_t singleTime, uint16_t longTime, uint16_t doubleTime){
-
-  if(pin<0)
-    return(false);
 
   unsigned long cTime=millis();
 
@@ -124,7 +137,7 @@ boolean PushButton::triggered(uint16_t singleTime, uint16_t longTime, uint16_t d
         return(true);
       }
       
-      if(!digitalRead(pin)){         // button is pressed
+      if(triggerType(pin)){         // button is "pressed"
         singleAlarm=cTime+singleTime;
         if(!doubleCheck){
           status=1;
@@ -138,7 +151,7 @@ boolean PushButton::triggered(uint16_t singleTime, uint16_t longTime, uint16_t d
   
     case 1:
     case 2:
-      if(digitalRead(pin)){         // button is released          
+      if(!triggerType(pin)){         // button is released          
         status=0;
         if(cTime>singleAlarm){
           doubleCheck=true;
@@ -154,7 +167,7 @@ boolean PushButton::triggered(uint16_t singleTime, uint16_t longTime, uint16_t d
     break;
 
     case 3:
-      if(digitalRead(pin))          // button has been released after a long press
+      if(!triggerType(pin))          // button has been released after a long press
         status=0;
       else if(cTime>longAlarm){
         longAlarm=cTime+longTime;
@@ -164,7 +177,7 @@ boolean PushButton::triggered(uint16_t singleTime, uint16_t longTime, uint16_t d
     break;
 
     case 4:    
-      if(digitalRead(pin)){         // button is released          
+      if(!triggerType(pin)){         // button is released          
         status=0;
       } else
       
@@ -177,7 +190,7 @@ boolean PushButton::triggered(uint16_t singleTime, uint16_t longTime, uint16_t d
     break;
 
     case 5:
-      if(digitalRead(pin))          // button has been released after double-click
+      if(!triggerType(pin))          // button has been released after double-click
         status=0;
      break;
 
@@ -188,11 +201,48 @@ boolean PushButton::triggered(uint16_t singleTime, uint16_t longTime, uint16_t d
 
 //////////////////////////////////////
 
-boolean PushButton::primed(){
+boolean PushButton::toggled(uint16_t toggleTime){
 
-  if(pin<0)
-    return(false); 
+  unsigned long cTime=millis();
+
+  switch(toggleStatus){
+    
+    case 0:      
+      if(triggerType(pin)){         // switch is toggled CLOSED
+        singleAlarm=cTime+toggleTime;
+        toggleStatus=1;
+        }
+    break;  
   
+    case 1:
+      if(!triggerType(pin)){       // switch is toggled back OPEN too soon
+        toggleStatus=0;
+      }
+      
+      else if(cTime>singleAlarm){  // switch has been in CLOSED state for sufficient time
+        toggleStatus=2;
+        pressType=CLOSED;
+        return(true);
+      }
+    break;
+
+    case 2:
+      if(!triggerType(pin)){       // switch is toggled OPEN after being in CLOSED state
+        toggleStatus=0;
+        pressType=OPEN;
+        return(true);        
+      }
+    break;
+    
+  } // switch
+
+  return(false);
+}
+
+//////////////////////////////////////
+
+boolean PushButton::primed(){
+ 
   if(millis()>singleAlarm && status==1){
     status=2;
     return(true);
@@ -209,12 +259,8 @@ int PushButton::type(){
 
 //////////////////////////////////////
 
-void PushButton::wait(){
-
-  if(pin<0)
-    return;
-  
-  while(!digitalRead(pin));
+void PushButton::wait(){  
+  while(triggerType(pin));
 }
 
 //////////////////////////////////////
@@ -223,178 +269,6 @@ void PushButton::reset(){
   status=0;
 }
 
-////////////////////////////////
-//         Blinker            //
-////////////////////////////////
-
-Blinker::Blinker(){
-}
-
 //////////////////////////////////////
 
-Blinker::Blinker(int pin, int timerNum, uint16_t autoOffDuration){
-  init(pin, timerNum, autoOffDuration);
-}
-
-//////////////////////////////////////
-
-void Blinker::init(int pin, int timerNum, uint16_t autoOffDuration){
-
-  this->pin=pin;
-  if(pin<0)
-    return;
-  
-  pinMode(pin,OUTPUT);
-  digitalWrite(pin,0);
-
-  pauseDuration=autoOffDuration*1000;
-
-#if SOC_TIMER_GROUP_TIMERS_PER_GROUP>1                        // ESP32 and ESP32-S2 contains two timers per timer group
-  group=((timerNum/2)%2==0)?TIMER_GROUP_0:TIMER_GROUP_1;
-  idx=(timerNum%2==0)?TIMER_0:TIMER_1;                        // ESP32-C3 only contains one timer per timer group
-#else
-  group=(timerNum%2==0)?TIMER_GROUP_0:TIMER_GROUP_1;
-  idx=TIMER_0;
-#endif
-
-  timer_config_t conf;
-  conf.alarm_en=TIMER_ALARM_EN;
-  conf.counter_en=TIMER_PAUSE;
-  conf.intr_type=TIMER_INTR_LEVEL;
-  conf.counter_dir=TIMER_COUNT_UP;
-  conf.auto_reload=TIMER_AUTORELOAD_EN;
-  conf.divider=getApbFrequency()/10000;                      // set divider to yield 10 kHz clock (0.1 ms pulses)
-
-#ifdef SOC_TIMER_GROUP_SUPPORT_XTAL                          // set clock to APB (default is XTAL!) if clk_src is defined in conf structure
-  conf.clk_src=TIMER_SRC_CLK_APB;
-#endif
-
-  timer_init(group,idx,&conf);
-  timer_isr_register(group,idx,Blinker::isrTimer,(void *)this,0,NULL);
-  timer_enable_intr(group,idx);
-
-}
-
-//////////////////////////////////////
-
-void Blinker::isrTimer(void *arg){
-
-  Blinker *b=(Blinker *)arg;
-
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 0, 0)               // use new method that is generic to ESP32, S2, and C3
-  timer_group_clr_intr_status_in_isr(b->group,b->idx);
-#else                                                             // use older method that is only for ESP32
-  if(b->group){
-    if(b->idx)
-      TIMERG1.int_clr_timers.t1=1;
-    else
-      TIMERG1.int_clr_timers.t0=1;
-  } else {
-    if(b->idx)
-      TIMERG0.int_clr_timers.t1=1;
-    else
-      TIMERG0.int_clr_timers.t0=1;    
-  }
-#endif
-  
-  if(!digitalRead(b->pin)){
-    digitalWrite(b->pin,1);
-    timer_set_alarm_value(b->group,b->idx,b->onTime);
-    b->count--;
-  } else {
-    digitalWrite(b->pin,0);    
-    if(b->count){
-      timer_set_alarm_value(b->group,b->idx,b->offTime);
-    } else {
-      timer_set_alarm_value(b->group,b->idx,b->delayTime);
-      b->count=b->nBlinks;      
-    }
-  }
-  
-  timer_set_alarm(b->group,b->idx,TIMER_ALARM_EN);
-
-}
-
-//////////////////////////////////////
-
-void Blinker::start(int period, float dutyCycle){
-
-  start(period, dutyCycle, 1, 0);
-}
-
-//////////////////////////////////////
-
-void Blinker::start(int period, float dutyCycle, int nBlinks, int delayTime){
-
-  if(pin<0)
-    return;
-
-  pauseTime=millis();
-  isPaused=false;
-  gpio_set_direction((gpio_num_t)pin, GPIO_MODE_INPUT_OUTPUT);      // needed to ensure digitalRead() functions correctly on ESP32-C3; also needed to re-enable after pause()
-
-  period*=10;
-  onTime=dutyCycle*period;
-  offTime=period-onTime;
-  this->delayTime=delayTime*10+offTime;
-  this->nBlinks=nBlinks;
-  count=nBlinks;
-  timer_set_counter_value(group,idx,0);
-  timer_set_alarm_value(group,idx,0);  
-  timer_start(group,idx);
-}
-
-//////////////////////////////////////
-
-void Blinker::stop(){
-
-  if(pin<0)
-    return;
-  
-  timer_pause(group,idx);  
-}
-
-//////////////////////////////////////
-
-void Blinker::on(){
-
-  if(pin<0)
-    return;
-
-  pauseTime=millis();
-  isPaused=false;
-  gpio_set_direction((gpio_num_t)pin, GPIO_MODE_INPUT_OUTPUT);
-
-  stop();
-  digitalWrite(pin,1);
-}
-
-//////////////////////////////////////
-
-void Blinker::off(){
-
-  if(pin<0)
-    return;
-
-  pauseTime=millis();
-  isPaused=false;
-  gpio_set_direction((gpio_num_t)pin, GPIO_MODE_INPUT_OUTPUT);
-
-  stop();
-  digitalWrite(pin,0);
-}
-
-//////////////////////////////////////
-
-void Blinker::check(){
-
-  if(pin<0)
-    return;
-
-  if(pauseDuration==0 || isPaused || (millis()-pauseTime)<pauseDuration)
-    return;
-
-  Serial.print("Pausing Status LED\n");
-  isPaused=true;
-  gpio_set_direction((gpio_num_t)pin, GPIO_MODE_DISABLE);
-}
+touch_value_t PushButton::threshold=0;

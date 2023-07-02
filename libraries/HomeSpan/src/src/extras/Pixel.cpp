@@ -1,7 +1,7 @@
 /*********************************************************************************
  *  MIT License
  *  
- *  Copyright (c) 2020-2022 Gregg E. Berman
+ *  Copyright (c) 2020-2023 Gregg E. Berman
  *  
  *  https://github.com/HomeSpan/HomeSpan
  *  
@@ -58,7 +58,9 @@ Pixel::Pixel(int pin, boolean isRGBW){
   rmt_set_tx_intr_en(rf->getChannel(),false);           // disable end-of-transmission interrupt
   txEndMask=RMT.int_ena.val;                            // save interrupt enable vector
   rmt_set_tx_intr_en(rf->getChannel(),true);            // enable end-of-transmission interrupt
-  txEndMask^=RMT.int_ena.val;                           // find bit that flipped and save as end-of-transmission mask for this channel 
+  txEndMask^=RMT.int_ena.val;                           // find bit that flipped and save as end-of-transmission mask for this channel
+
+  onColor.HSV(0,100,100,0);
 }
 
 ///////////////////

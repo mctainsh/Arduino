@@ -4,19 +4,42 @@ The ESP32 has up to 16 PWM channels that can be used to drive a variety of devic
 
 `#include "extras/PwmPin.h"`
 
-## *LedPin(uint8_t pin [,float level [,uint16_t frequency]])*
+## *LedPin(uint8_t pin [,float level [,uint16_t frequency [,boolean invert]]])*
 
 Creating an instance of this **class** configures the specified *pin* to output a PWM signal suitable for a controlling dimmable LED.  Arguments, along with their defaults if left unspecified, are as follows:
 
   * *pin* - the pin on which the PWM control signal will be output
   * *level* - sets the initial %duty-cycle of the PWM from from 0 (LED completely off) to 100 (LED fully on).  Default=0 (LED initially off)
   * *frequency* - sets the PWM frequency, in Hz, from 1-65535 (ESP32 only) or 5-65535 (ESP32-S2 and ESP32-C3).  Defaults to 5000 Hz if unspecified, or if set to 0
+  * *boolean* - if true, the output of the PWM signal will be inverted.  Default=false
  
  The following methods are supported:
 
 * `void set(float level)`
 
   * sets the PWM %duty-cycle to *level*, where *level* ranges from 0 (LED completely off) to 100 (LED fully on)
+
+* `int fade(float level, uint32_t fadeTime, int fadeType=LedPin::ABSOLUTE)`
+
+  * uses the ESP32's PWM hardware to smoothly fade the LED to *level* (from 0-100) over a maximum of *fadeTime* milliseconds
+  * if *fadeType* is set to **LedPin::ABSOLUTE** (the default), fading will take the full amount of time specified by *fadeTime*
+  * if *fadeType* is set to **LedPin::PROPORTIONAL**, the fading time will be scaled down proportionally according to the difference between the current level and the level specified.  For example, if the current level is set to 30, then
+    * `fade(20, 1000, LedPin::ABSOLUTE)` sets the level to 20 over the course of 1 second, whereas
+    * `fade(20, 1000, LedPin::PROPORTIONAL)` sets the level to 20 over the course of 100 milliseconds (since the level only needs to change by 10 out of 100 units)
+  * this is a **NON-BLOCKING** method and will return immediately.  Fading occurs in the background controlled by the ESP32 hardware
+  * note: once fading begins it CANNOT be stopped or changed until completed (this is a limitation of the ESP32 hardware)
+  * this method returns 0 if the fading has successfully started, or 1 if fading is already in progress and cannot yet be changed (new requests for fading while fading is already in progress for a specific LedPin are simply ignored)
+  * use the *fadeStatus* method (below) to determine the current fading status of any given LedPin
+
+* `int fadeStatus()`
+
+  * returns the fading status of an LedPin.  Return values are as follows:
+  
+    * **LedPin::NOT_FADING** - the LedPin is not currently fading
+    * **LedPin::FADING** - fading on LedPin is currently in progress and cannot be changed/stopped
+    * **LedPin::COMPLETED** - fading has just completed  
+      * once this value is returned, subsequent calls to `fadeStatus()` will return **LedPin::NOT_FADING** (unless you called `fade()` again)
+      * by checking for `fadeStatus()==LedPin::COMPLETED` in a `loop()` method, you can thus trigger a new action (if desired) once fading is completed
   
 * `int getPin()`
 
@@ -33,7 +56,7 @@ LedPin also includes a static class function that converts Hue/Saturation/Bright
   * *g* - output Green value, range 0-1
   * *b* - output Blue value, range 0-1
 
-See tutorial sketch [#10 (RGB_LED)](../examples/10-RGB_LED) for an example of using LedPin to control an RGB LED.
+See tutorial sketch [#10 (RGB_LED)](../examples/10-RGB_LED) for an example of using LedPin to control an RGB LED.  Also see [*File → Examples → HomeSpan → Other Examples → FadingLED*](../examples/Other%20Examples/FadingLED) for an example of to use the ESP32's built-in fading controls.
 
 ## *ServoPin(uint8_t pin [,double initDegrees [,uint16_t minMicros, uint16_t maxMicros, double minDegrees, double maxDegrees]])*
 
@@ -56,7 +79,7 @@ The *minMicros* parameter must be less than the *maxMicros* parameter, but setti
 
   * returns the pin number (or -1 if ServoPin was not successfully initialized)
 
-A worked example showing how ServoPin can be used to control the Horizontal Tilt of a motorized Window Shade can be found in the Arduino IDE under [*File → Examples → HomeSpan → Other Examples → ServoControl*](../Other%20Examples/ServoControl).
+A worked example showing how ServoPin can be used to control the Horizontal Tilt of a motorized Window Shade can be found in the Arduino IDE under [*File → Examples → HomeSpan → Other Examples → ServoControl*](../examples/Other%20Examples/ServoControl).
 
 ### PWM Resource Allocation and Limitations
 
@@ -65,6 +88,7 @@ The following PWM resources are available:
 * ESP32: 16 Channels / 8 Timers (arranged in two distinct sets of 8 Channels and 4 Timers)
 * ESP32-S2: 8 Channels / 4 Timers
 * ESP32-C3: 6 Channels / 4 Timers
+* ESP32-S3: 8 Channels / 4 Timers
 
 HomeSpan *automatically* allocates Channels and Timers to LedPin and ServoPin objects as they are instantiated. Every pin assigned consumes a single Channel;  every *unique* frequency specified among all channels (within the same set, for the ESP32) consumes a single Timer.  HomeSpan will conserve resources by re-using the same Timer for all Channels operating at the same frequency.  *HomeSpan also automatically configures each Timer to support the maximum duty-resolution possible for the frequency specified.*
 
@@ -72,4 +96,4 @@ HomeSpan will report a non-fatal error message to the Arduino Serial Monitor whe
 
 ---
 
-[↩️](README.md) Back to the Welcome page
+[↩️](../README.md) Back to the Welcome page

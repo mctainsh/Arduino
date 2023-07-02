@@ -20,7 +20,6 @@ struct DEV_DimmableLED : Service::LightBulb {       // Dimmable LED
   int powerPin;                                     // NEW! pin with pushbutton to turn on/off LED
   int raisePin;                                     // NEW! pin with pushbutton to increase brightness
   int lowerPin;                                     // NEW! pin with pushButton to decrease brightness
-  int channel;                                      // PWM channel used for this LED (should be unique for each LED)
   SpanCharacteristic *power;                        // reference to the On Characteristic
   SpanCharacteristic *level;                        // reference to the Brightness Characteristic
   int favoriteLevel=50;                             // NEW! keep track of a 'favorite' level
@@ -36,7 +35,8 @@ struct DEV_DimmableLED : Service::LightBulb {       // Dimmable LED
 
     // NEW!  Below we create three SpanButton() objects.  In the first we specify the pin number, as required, but allow SpanButton() to use
     // its default values for a LONG press (2000 ms), a SINGLE press (5 ms), and a DOUBLE press (200 ms).  In the second and third we change the
-    // default LONG press time to 500 ms, which works well for repeatedly increasing or decreasing the brightness.
+    // default LONG press time to 500 ms, which works well for repeatedly increasing or decreasing the brightness.  Since we do not specify
+    // a triggerType, SpanButton uses the default TRIGGER_ON_TOUCH, which is suitable for a pushbutton that connects pin to GROUND when pressed.
     
     // All of the logic for increasing/decreasing brightness, turning on/off power, and setting/resetting a favorite brightness level is found
     // in the button() method below.
@@ -52,8 +52,6 @@ struct DEV_DimmableLED : Service::LightBulb {       // Dimmable LED
 
     Serial.print("Configuring Dimmable LED: Pin="); // initialization message
     Serial.print(ledPin->getPin());
-    Serial.print(" Channel=");
-    Serial.print(channel);
     Serial.print("\n");
     
   } // end constructor

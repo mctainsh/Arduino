@@ -1,7 +1,7 @@
 /*********************************************************************************
  *  MIT License
  *  
- *  Copyright (c) 2020-2022 Gregg E. Berman
+ *  Copyright (c) 2020-2023 Gregg E. Berman
  *  
  *  https://github.com/HomeSpan/HomeSpan
  *  
@@ -35,8 +35,8 @@
 //              HomeSpan Version                    //
 
 #define     HS_MAJOR  1
-#define     HS_MINOR  5
-#define     HS_PATCH  1
+#define     HS_MINOR  7
+#define     HS_PATCH  2
 
 #define     STRINGIFY(x) _STR(x)
 #define     _STR(x) #x
@@ -55,6 +55,10 @@
 
 #define     ARDUINO_ESP_VERSION   STRINGIFY(ARDUINO_ESP32_GIT_DESC)
 
+#if ESP_ARDUINO_VERSION_MAJOR<2
+  #error HOMESPAN REQUIRES VERSION 2 OF THE ARDUINO ESP32 LIBRARY
+#endif
+
 //////////////////////////////////////////////////////
 //                DEFAULT SETTINGS                  //  
 
@@ -66,9 +70,6 @@
 #define     DEFAULT_SETUP_CODE        "46637726"          // changed during network setup or with 'S' command
 
 #define     DEFAULT_QR_ID             "HSPN"              // change with homeSpan.setQRID(qrID);
-
-#define     DEFAULT_CONTROL_PIN       -1                  // change with homeSpan.setControlPin(pin)
-#define     DEFAULT_STATUS_PIN        -1                  // change with homeSpan.setStatusPin(pin)
 
 #define     DEFAULT_AP_SSID           "HomeSpan-Setup"    // change with homeSpan.setApSSID(ssid)
 #define     DEFAULT_AP_PASSWORD       "homespan"          // change with homeSpan.setApPassword(pwd)
@@ -104,10 +105,10 @@
 //       0=Minimal, 1=Informative, 2=All           //
 
 #define LOG0(format,...) Serial.print ##__VA_OPT__(f)(format __VA_OPT__(,) __VA_ARGS__)
-#define LOG1(format,...) if(homeSpan.logLevel>0)Serial.print ##__VA_OPT__(f)(format __VA_OPT__(,) __VA_ARGS__)
-#define LOG2(format,...) if(homeSpan.logLevel>1)Serial.print ##__VA_OPT__(f)(format __VA_OPT__(,) __VA_ARGS__)
+#define LOG1(format,...) if(homeSpan.getLogLevel()>0)Serial.print ##__VA_OPT__(f)(format __VA_OPT__(,) __VA_ARGS__)
+#define LOG2(format,...) if(homeSpan.getLogLevel()>1)Serial.print ##__VA_OPT__(f)(format __VA_OPT__(,) __VA_ARGS__)
 
-#define WEBLOG(format,...) homeSpan.webLog.addLog(format __VA_OPT__(,) __VA_ARGS__)
+#define WEBLOG(format,...) homeSpan.addWebLog(false, format __VA_OPT__(,) __VA_ARGS__)
    
 //////////////////////////////////////////////////////
 //   Types of Accessory Categories                  //

@@ -22,17 +22,34 @@ At runtime HomeSpan will create a global **object** named `homeSpan` that suppor
  
  * `void poll()`
    * checks for HAP requests, local commands, and device activity
-   * **must** be called repeatedly in each sketch and is typically placed at the top of the Arduino `loop()` method
-   
+   * **must** be called repeatedly in each sketch and is typically placed at the top of the Arduino `loop()` method (*unless* `autoPoll()`, described further below, is used instead)
+
 ---
 
 The following **optional** `homeSpan` methods override various HomeSpan initialization parameters used in `begin()`, and therefore **should** be called before `begin()` to take effect.  If a method is *not* called, HomeSpan uses the default parameter indicated below:
 
 * `void setControlPin(uint8_t pin)`
   * sets the ESP32 pin to use for the HomeSpan Control Button.  If not specified, HomeSpan will assume there is no Control Button
+
+* `int getControlPin()`
+   * returns the pin number of the HomeSpan Control Button as set by `setControlPin(pin)`, or -1 if no pin has been set
   
 * `void setStatusPin(uint8_t pin)`
-  * sets the ESP32 pin to use for the HomeSpan Status LED.  If not specified, HomeSpan will assume there is no Status LED
+  * sets the ESP32 pin to use for the HomeSpan Status LED
+  * assumes a standard LED will be connected to *pin*
+  * if neither this method nor `setStatusPixel()` is called, HomeSpan will assume there is no Status LED
+  
+* `void setStatusPixel(uint8_t pin, float h=0, float s=100, float v=100)`
+  * sets the ESP32 pin to use for the HomeSpan Status LED
+  * assumes an RGB NeoPixel (or equivalent) will be connected to *pin*
+  * works well with ESP32 boards that have a built-in NeoPixel LED, though adding an external NeoPixel is fine
+  * users can optionally specify the color HomeSpan will use with the NeoPixel by providing the following HSV values:
+    * h = Hue from 0-360
+    * s = Saturation percentage from 0-100
+    * v = Brightness percentage from 0-100
+  * color defaults to *red* if unspecified
+  * example: `homeSpan.setStatusPixel(8,120,100,20)` sets the Status LED to light green using a NeoPixel attached to pin 8 
+  * if neither this method nor `setStatusPin()` is called, HomeSpan will assume there is no Status LED
 
 * `void setStatusAutoOff(uint16_t duration)`
   * sets Status LED to automatically turn off after *duration* seconds
@@ -40,7 +57,7 @@ The following **optional** `homeSpan` methods override various HomeSpan initiali
   * if *duration* is set to zero, auto-off is disabled (Status LED will remain on indefinitely)
   
 * `int getStatusPin()`
-* returns the pin number of the Status LED as set by `setStatusPin(pin)`, or -1 if no pin has been set
+   * returns the pin number of the Status LED as set by `setStatusPin(pin)`, or -1 if no pin has been set
 
 * `void setApSSID(const char *ssid)`
   * sets the SSID (network name) of the HomeSpan Setup Access Point (default="HomeSpan-Setup")
@@ -61,6 +78,9 @@ The following **optional** `homeSpan` methods override various HomeSpan initiali
     * 2 = all HomeSpan status messages plus all HAP communication packets to and from the HomeSpan device, as well as all `LOG1()` and `LOG2()` messages specified in the sketch by the user
   * note the log level can also be changed at runtime with the 'L' command via the [HomeSpan CLI](CLI.md)
   * see [Message Logging](Logging.md) for complete details
+
+* `int getLogLevel()`
+  * returns the current Log Level as set by `setLogLevel(level)`
   
 * `void reserveSocketConnections(uint8_t nSockets)`
   * reserves *nSockets* network sockets for uses **other than** by the HomeSpan HAP Server for HomeKit Controller Connections
@@ -89,13 +109,20 @@ The following **optional** `homeSpan` methods override various HomeSpan initiali
 
 The following **optional** `homeSpan` methods enable additional features and provide for further customization of the HomeSpan environment.  Unless otherwise noted, calls **should** be made before `begin()` to take effect:
 
-* `void enableOTA(boolean auth=true, boolean safeLoad=true)`
+* `int enableOTA(boolean auth=true, boolean safeLoad=true)`
   * enables [Over-the-Air (OTA) Updating](OTA.md) of a HomeSpan device, which is otherwise disabled
   * HomeSpan OTA requires an authorizing password unless *auth* is specified and set to *false*
   * the default OTA password for new HomeSpan devices is "homespan-ota"
   * this can be changed via the [HomeSpan CLI](CLI.md) using the 'O' command
   * note enabling OTA reduces the number of HAP Controller Connections by 1
   * OTA Safe Load will be enabled by default unless the second argument is specified and set to *false*.  HomeSpan OTA Safe Load checks to ensure that sketches uploaded to an existing HomeSpan device are themselves HomeSpan sketches, and that they also have OTA enabled.  See [HomeSpan OTA Safe Load](OTA.md#ota-safe-load) for details
+  * returns 0 if enabling OTA was successful, or -1 and reports an error to the Serial Monitor if not
+
+* `int enableOTA(const char *pwd, boolean safeLoad=true)`
+  * an alternative form of `enableOTA()` that allows you to programmatically change the OTA password to the specified *pwd*
+  * *pwd* must contain between 1 and 32 characters
+  * this command causes HomeSpan to ignore, but does not otherwise alter, any password stored using the 'O' command 
+  * returns 0 if enabling OTA was successful, or -1 and reports an error to the Serial Monitor if not
 
 * `void enableAutoStartAP()`
   * enables automatic start-up of WiFi Access Point if WiFi Credentials are **not** found at boot time
@@ -115,8 +142,7 @@ The following **optional** `homeSpan` methods enable additional features and pro
   * sets the SSID (*ssid*) and password (*pwd*) of the WiFi network to which HomeSpan will connect
   * *ssid* and *pwd* are automatically saved in HomeSpan's non-volatile storage (NVS) for retrieval when the device restarts
   * note that the saved values are truncated if they exceed the maximum allowable characters (ssid=32; pwd=64)
-  
-> :warning: SECURITY WARNING: The purpose of this function is to allow advanced users to *dynamically* set the device's WiFi Credentials using a customized Access Point function specified by `setApFunction(func)`. It it NOT recommended to use this function to hardcode your WiFi SSID and password directly into your sketch.  Instead, use one of the more secure methods provided by HomeSpan, such as typing 'W' from the CLI, or launching HomeSpan's Access Point, to set your WiFi credentials without hardcoding them into your sketch
+  * :warning: SECURITY WARNING: The purpose of this function is to allow advanced users to *dynamically* set the device's WiFi Credentials using a customized Access Point function specified by `setApFunction(func)`. It it NOT recommended to use this function to hardcode your WiFi SSID and password directly into your sketch.  Instead, use one of the more secure methods provided by HomeSpan, such as typing 'W' from the CLI, or launching HomeSpan's Access Point, to set your WiFi credentials without hardcoding them into your sketch
 
 * `void setWifiCallback(void (*func)())`
   * sets an optional user-defined callback function, *func*, to be called by HomeSpan upon start-up just after WiFi connectivity has been established.  This one-time call to *func* is provided for users that are implementing other network-related services as part of their sketch, but that cannot be started until WiFi connectivity is established.  The function *func* must be of type *void* and have no arguments
@@ -125,19 +151,24 @@ The following **optional** `homeSpan` methods enable additional features and pro
   * sets an optional user-defined callback function, *func*, to be called by HomeSpan upon completion of pairing to a controller (*status=true*) or unpairing from a controller (*status=false*)
   *   this one-time call to *func* is provided for users that would like to trigger additional actions when the device is first paired, or the device is later unpaired
   *   note this *func* is **not** called upon start-up and should not be used to simply check whether a device is paired or unpaired.  It is only called when pairing status changes
-  *   the function *func* must be of type *void* and have one *boolean* argument
+  *   the function *func* must be of type *void* and accept one *boolean* argument
+
+* `void setStatusCallback(void (*func)(HS_STATUS status))`
+  * sets an optional user-defined callback function, *func*, to be called by HomeSpan whenever its running state (e.g. WiFi Connecting, Pairing Needed...) changes in way that would alter the blinking pattern of the (optional) Status LED
+  * if *func* is set, it will be called regardless of whether or not a Status LED has actually been defined
+  * this allows users to reflect changes to the current state of HomeSpan using alternative methods, such as outputting messages to an embedded LCD or E-Ink display
+  * the function *func* must be of type *void* and accept one argument of enum type [HS_STATUS](HS_STATUS.md)
+
+* `char* statusString(HS_STATUS s)`
+  * returns a pre-defined character string message representing *s*, which must be of enum type [HS_STATUS](HS_STATUS.md)
+  * typically used in conjunction with `setStatusCallback()` above
 
 * `void setPairingCode(const char *s)`
   * sets the Setup Pairing Code to *s*, which **must** be exactly eight numerical digits (no dashes)
   * example: `homeSpan.setPairingCode("46637726");`
   * a hashed version of the Pairing Code will be saved to the device's non-volatile storage, overwriting any currently-stored Pairing Code
   * if *s* contains an invalid code, an error will be reported and the code will *not* be saved.  Instead, the currently-stored Pairing Code (or the HomeSpan default Pairing Code if no code has been stored) will be used
-  * :exclamation: SECURTY WARNING: Hardcoding a device's Pairing Code into your sketch is considered a security risk and is **not** recommended.  Instead, use one of the more secure methods provided by HomeSpan, such as typing 'S \<code\>' from the CLI, or launching HomeSpan's Access Point, to set your Pairing Code without hardcoding it into your sketch
-
-* `void deleteStoredValues()`
-  * deletes the value settings of all stored Characteristics from the NVS
-  * performs the same function as typing 'V' into the CLI
-  * can by called from anywhere in a sketch
+  * :warning: SECURTY WARNING: Hardcoding a device's Pairing Code into your sketch is considered a security risk and is **not** recommended.  Instead, use one of the more secure methods provided by HomeSpan, such as typing 'S \<code\>' from the CLI, or launching HomeSpan's Access Point, to set your Pairing Code without hardcoding it into your sketch
 
 * `void setSketchVersion(const char *sVer)`
   * sets the version of a HomeSpan sketch to *sVer*, which can be any arbitrary character string
@@ -161,6 +192,53 @@ The following **optional** `homeSpan` methods enable additional features and pro
 
 * `void setTimeServerTimeout(uint32_t tSec)`
   * changes the default 10-second timeout period HomeSpan uses when `enableWebLog()` tries set the device clock from an internet time server to *tSec* seconds
+ 
+* `void processSerialCommand(const char *CLIcommand)`
+  * processes the *CLIcommand* just as if were typed into the Serial Monitor
+  * allows for programmatic access to all CLI commands, included any custom commands defined by the user
+  * will work whether or not device is connected to a computer
+  * example: `homeSpan.processSerialCommand("A");` starts the HomeSpan Setup Access Point
+  * example: `homeSpan.processSerialCommand("Q HUB3");` changes the HomeKit Setup ID for QR Codes to "HUB3"
+ 
+---
+
+The following **optional** `homeSpan` methods provide additional run-time functionality for more advanced use cases: 
+ 
+* `void deleteStoredValues()`
+  * deletes the value settings of all stored Characteristics from the NVS
+  * performs the same function as typing 'V' into the CLI
+ 
+* `boolean deleteAccessory(uint32_t aid)`
+  * deletes Accessory with Accessory ID of *aid*, if found
+  * returns true if successful (match found), or false if the specified *aid* does not match any current Accessories
+  * allows for dynamically changing the Accessory database during run-time (i.e. changing the configuration *after* the Arduino `setup()` has finished)
+  * deleting an Accessory automatically deletes all Services, Characteristics, and any other resources it contains
+  * outputs Level-1 Log Messages listing all deleted components
+  * note: though deletions take effect immediately, HomeKit Controllers, such as the Home App, will not be aware of these changes until the database configuration number is updated and rebroadcast - see updateDatabase() below
+ 
+* `boolean updateDatabase()`
+  * recomputes the database configuration number and, if changed, rebroadcasts the new number via MDNS so all connected HomeKit Controllers, such as the Home App, can request a full refresh to accurately reflect the new configuration
+  * returns true if configuration number has changed, false otherwise
+  * *only* needed if you want to make run-time (i.e. after the Arduino `setup()` function has completed) changes to the device's Accessory database 
+  * use anytime after dynamically adding one or more Accessories (with `new SpanAccessory(aid)`) or deleting one or more Accessories (with `homeSpan.deleteAccessory(aid)`)
+  * **important**: once you delete an Accessory, you cannot re-use the same *aid* when adding a new Accessory (on the same device) unless the new Accessory is configured with the exact same Services and Characteristics as the deleted Accessory
+  * note: this method is **not** needed if you have a static Accessory database that is fully defined in the Arduino `setup()` function of a sketch
+ 
+---
+
+The following `homeSpan` methods are considered experimental, since not all use cases have been explored or debugged.  Use with caution:
+ 
+* `void autoPoll(uint32_t stackSize, uint32_t priority, uint32_t cpu)`
+ 
+  * an *optional* method to create a separate task that repeatedly calls `poll()` in the background.  This frees up the Ardino `loop()` method for any user-defined code to run in parallel that would otherwise block, or be blocked by, calling `poll()` in the `loop()` method.  Parameters, and their default values if unspecified, are as follows:
+ 
+    * *stackSize* - size of stack, in bytes, used by the polling task.  Default=8192 if unspecified
+    * *priority* - priority at which task runs.  Minimum is 1.  Maximum is typically 24, but it depends on how the ESP32 operating system is configured. If you set it to an arbitrarily high value (e.g. 999), it will be set to the maximum priority allowed.  Default=1 if unspecified
+    * *cpu* - specifies the CPU on which the polling task will run.  Valid values are 0 and 1.  This paramater is ignored on single-cpu boards.  Default=0 if unspecified
+  * if used, **must** be placed in a sketch as the last line in the Arduino `setup()` method
+  * HomeSpan will throw and error and halt if both `poll()`and `autoPoll()` are used in the same sketch - either place `poll()` in the Arduino `loop()` method **or** place `autoPoll()` at the the end of the Arduino `setup()` method
+  * if this method is used, and you have no need to add your own code to the main Arduino `loop()`, you can safely skip defining a blank `void loop(){}` function in your sketch
+  * warning: if any code you add to the Arduino `loop()` method tries to alter any HomeSpan settings or functions running in the background `poll()` task, race conditions may yield undefined results
  
 ## *SpanAccessory(uint32_t aid)*
 
@@ -200,15 +278,15 @@ The following methods are supported:
   * note though this functionality is defined by Apple in HAP-R2, it seems to have been deprecated and no longer serves any purpose or has any affect on the Home App
   
 * `SpanService *addLink(SpanService *svc)`
-  * adds *svc* as a Linked Service.  Returns a pointer to the calling Service itself so that the method can be chained during instantiation.
-  * note that Linked Services are only applicable for select HAP Services.  See Apple's [HAP-R2](https://developer.apple.com/support/homekit-accessory-protocol/) documentation for full details.
+  * adds *svc* as a Linked Service.  Returns a pointer to the calling Service itself so that the method can be chained during instantiation
+  * note that Linked Services are only applicable for select HAP Services.  See Apple's HAP-R2 documentation for full details
   * example: `(new Service::Faucet)->addLink(new Service::Valve)->addLink(new Service::Valve);` (links two Valves to a Faucet)
 
 * `vector<SpanService *> getLinks()`
   * returns a vector of pointers to Services that were added using `addLink()`
   * useful for creating loops that iterate over all linked Services
   * note that the returned vector points to generic SpanServices, which should be re-cast as needed
-  * example: `for(auto myValve : faucet::getLinks()) { if((MyValve *)myValve)->active->getVal()) ... }` checks all Valves linked to to a Faucet
+  * example: `for(auto myValve : faucet->getLinks()) { if((MyValve *)myValve)->active->getVal()) ... }` checks all Valves linked to a Faucet
   
 * `virtual boolean update()`
   * HomeSpan calls this method upon receiving a request from a HomeKit Controller to update one or more Characteristics associated with the Service.  Users should override this method with code that implements that requested updates using one or more of the SpanCharacteristic methods below.  Method **must** return *true* if update succeeds, or *false* if not.
@@ -246,7 +324,7 @@ This is a **base class** from which all HomeSpan Characteristics are derived, an
   * example with template excluded : `int tilt = Characteristic::CurrentTiltAngle->getVal();`
 
 * `type T getNewVal<T>()`
-  * a template method that returns the desired **new** value to which a HomeKit Controller has requested the Characteristic be updated.  Same casting rules as for `getVal<>()`.  Only applicable for numerical-based Characteristics
+  * a template method that returns the desired **new** value to which a HomeKit Controller has requested the Characteristic be updated.  Same casting rules as for `getVal<>()`
     
 * `void setVal(value [,boolean notify])`
   * sets the value of a numerical-based Characteristic to *value*, and, if *notify* is set to true, notifies all HomeKit Controllers of the change.  The *notify* flag is optional and will be set to true if not specified.  Setting the *notify* flag to false allows you to update a Characateristic without notifying any HomeKit Controllers, which is useful for Characteristics that HomeKit automatically adjusts (such as a countdown timer) but will be requested from the Accessory if the Home App closes and is then re-opened
@@ -266,9 +344,8 @@ This is a **base class** from which all HomeSpan Characteristics are derived, an
   
 * `SpanCharacteristic *setValidValues(int n, [int v1, int v2 ...])`
   * overrides the default HAP Valid Values for Characteristics that have specific enumerated Valid Values with a variable-length list of *n* values *v1*, *v2*, etc.
-  * an error is thrown if:
-    * called on a Characteristic that does not have specific enumerated Valid Values, or
-    * called more than once on the same Characteristic
+  * works on Characteristics with UINT8, UINT16, UINT32, and INT formats only
+    * a warning message is thrown, and the request is ignored, if this method is called on a Characteristic with any other format
   * returns a pointer to the Characteristic itself so that the method can be chained during instantiation
   * example: `(new Characteristic::SecuritySystemTargetState())->setValidValues(3,0,1,3);` creates a new Valid Value list of length=3 containing the values 0, 1, and 3.  This has the effect of informing HomeKit that a SecuritySystemTargetState value of 2 (Night Arm) is not valid and should not be shown as a choice in the Home App
 
@@ -282,6 +359,23 @@ This is a **base class** from which all HomeSpan Characteristics are derived, an
 
 * `void setString(const char *value)`
   * equivalent to `setVal(value)`, but used exclusively for string-characteristics (i.e. a null-terminated array of characters)
+ 
+ #### The following methods are supported for DATA (i.e. byte-array) Characteristics:
+
+* `size_t getData(uint8_t *data, size_t len)`
+  * similar to `getVal()`, but exclusively used for byte-array Characteristics
+  * fills byte array *data*, of specified size *len*, with all bytes "encoded" as the current value of the Characteristic
+  * returns the total number of bytes encoded in the Characteristic
+  * if *len* is less than the total number of bytes encoded, no data is extracted (i.e. *data* is unmodified) and a warning message is thrown indicating that the size of the *data* array is insufficient to extract all the bytes encoded in the Characteristic
+  * setting *data* to NULL returns the total number of bytes encoded without extracting any data.  This can be used to help create a *data* array of sufficient size in advance of extracting the data
+  
+* `size_t getNewData(uint8_t *data, size_t len)`
+  * similar to `getData()`, but fills byte array *data*, of specified size *len*, with bytes based on the desired **new** value to which a HomeKit Controller has requested the Characteristic be updated
+
+* `void setData(uint8_t *data, size_t len)`
+  * similar to `setVal()`, but exclusively used for byte-array Characteristics
+  * updates the Characteristic by "filling" it with *len* bytes from bytes array *data*
+  * note: byte-array Characteristics are encoded and transmitted as base-64 strings.  HomeSpan automatically peforms all encoding and decoding between this format and the specified byte arrays.  But when output to the Serial Monitor, the value of byte-array Characteristics are displayed in their base-64 format (as opposed to being shown as a byte array), since base-64 is the representation that is actually transmitted to and from HomeKit
 
 #### The following methods are supported for all Characteristics:
 
@@ -317,7 +411,7 @@ This is a **base class** from which all HomeSpan Characteristics are derived, an
   * returns a pointer to the Characteristic itself so that the method can be chained during instantiation
   * example: `(new Characteristic::RotationSpeed())->setUnit("percentage");`
 
-## *SpanButton(int pin, uint16_t longTime, uint16_t singleTime, uint16_t doubleTime)*
+### *SpanButton(int pin, uint16_t longTime, uint16_t singleTime, uint16_t doubleTime, boolean (\*triggerType)(int))*
 
 Creating an instance of this **class** attaches a pushbutton handler to the ESP32 *pin* specified.
 
@@ -325,24 +419,69 @@ Creating an instance of this **class** attaches a pushbutton handler to the ESP3
 * instantiating a Button without first instantiating a Service throws an error during initialization
 
 The first argument is required; the rest are optional:
-* *pin* - the ESP32 pin to which a one pole of a normally-open pushbutton will be connected; the other pole is connected to ground
+ 
+* *pin* - the ESP32 pin to which the button is connected 
 * *longTime* - the minimum time (in millis) required for the button to be pressed and held to trigger a Long Press (default=2000 ms)
 * *singleTime* - the minimum time (in millis) required for the button to be pressed to trigger a Single Press (default=5 ms)
 * *doubleTime* -  the maximum time (in millis) allowed between two Single Presses to qualify as a Double Press (default=200 ms)
-  
-Trigger Rules:
+* *triggerType* - pointer to a boolean function that accepts a single *int* argument and returns `true` or `false` depending on whether or not a "press" has been triggered on the *pin* number passed to the *int* argument.  For ease of use, you may simply choose from the following built-in functions:
+  * `SpanButton::TRIGGER_ON_LOW` - triggers when *pin* is driven LOW.  Suitable for buttons that connect *pin* to GROUND (this is the default when *triggerType* is not specified)
+ 
+  * `SpanButton::TRIGGER_ON_HIGH` - triggers when *pin* is driven HIGH.  Suitable for buttons that connect *pin* to VCC (typically 3.3V)
+  * `SpanButton::TRIGGER_ON_TOUCH`- uses the device's touch-sensor peripheral to trigger when a sensor attached to *pin* has been touched (not available on ESP32-C3 devices)
+ 
+When any of these built-in functions are selected (or *triggerType* is left unspecified and the default is used), SpanButton will automatically configure the *pin* as needed upon instantiation.
+ 
+Alternatively, you can set *triggerType* to any user-defined function of the form `boolean(int arg)` and provide your own logic for determining whether a trigger has occured on the specified *pin*, which is passed through to your function as *arg*. In this case *arg* can either represent an actual device pin, or simply be an arbitrary *int* your function utilizes, such as the virtual pin number on a multiplexer.  Note: if you specify your own function for *triggerType* you also must include in your sketch any code needed to initialize the logic or configure whatever resource *triggerType* is utilizing (such as a pin multiplexer).
+
+For convenience, a second form of the *SpanButton()* constructor is also provided:
+  * `SpanButton(int pin, boolean (*triggerType)(int), uint16_t longTime=2000, uint16_t singleTime=5, uint16_t doubleTime=200)`
+    * this allows you to set just the *pin* and *triggerType* while leaving the remaining parameters at their default values
+ 
+#### Trigger Rules ###
 * If button is pressed and continuously held, a Long Press will be triggered every longTime ms until the button is released
 * If button is pressed for more than singleTime ms but less than longTime ms and then released, a Single Press will be triggered, UNLESS the button is pressed a second time within doubleTime ms AND held again for at least singleTime ms, in which case a DoublePress will be triggered;  no further events will occur until the button is released
 * If singleTime>longTime, only Long Press triggers can occur
 * If doubleTime=0, Double Presses cannot occur
-  
-HomeSpan automatically calls the `button(int pin, int pressType)` method of a Service upon a trigger event in any Button associated with that Service, where *pin* is the ESP32 pin to which the pushbutton is connected, and *pressType* is an integer that can also be represented by the enum constants indicated:
-  * 0=single press (SpanButton::SINGLE)
-  * 1=double press (SpanButton::DOUBLE)
-  * 2=long press (SpanButton::LONG)  
+ 
+#### Usage ####
+HomeSpan automatically calls the `button(int pin, int pressType)` method of a Service upon a trigger event in any SpanButton associated with that Service, where *pin* is the ESP32 pin to which the pushbutton is connected, and *pressType* is an integer that can also be represented by the enum constants indicated:
+  * 0=single press (`SpanButton::SINGLE`)
+  * 1=double press (`SpanButton::DOUBLE`)
+  * 2=long press (`SpanButton::LONG`)  
   
 HomeSpan will report a warning, but not an error, during initialization if the user had not overridden the virtual button() method for a Service contaning one or more Buttons; triggers of those Buttons will simply ignored.
+ 
+When using one or more Touch Sensors, HomeSpan automatically calibrates the threshold at which they are triggered by polling the baseline sensor reading upon instantiation of first SpanButton of type `SpanButton::TRIGGER_ON_TOUCH`.  For ESP32 devices, the threshold is set to 50% of the baseline value since triggers occur when a sensor value falls *below* the threhold level.  For ESP32-S2 and ESP32-S3 devices, the threshold is set to 200% of the baseline value since triggers occur when a sensor value rises *above* the threhold level.  Normally HomeSpan's auto calibration will result in accurate detection of SINGLE, DOUBLE, and LONG presses of touch sensors.  However, if needed you can override the calibration and set your own threshold value using the following class-level method:
 
+ * `void SpanButton::setTouchThreshold(uintXX_t thresh)`
+   * sets the threshold value above (for ESP32 devices) or below (for ESP32-S2 and ESP32-S3 devices) which touch sensors are triggered to *thresh*
+   * *XX* is 16 (for ESP32 devices) or 32 (for ESP32-S2 and ESP32-S3 devices)
+   * the threshold specified is considered global and used for *all* SpanButton instances of type `SpanButton::TRIGGER_ON_TOUCH`
+   * this method can be called either before or after SpanButtons are created
+ 
+In addition, you can also override the ESP32's touch sensor timing parameters using the following class-level method:
+
+* `void SpanButton::setTouchCycles(uint16_t measureTime, uint16_t sleepTime)`
+  * changes the measurement time and sleep time clock cycles to *measureTime* and *sleepTime*, respectively.  This is simply a pass-though call to the Arduino-ESP32 library `touchSetCycles()` function
+  * unless a specific threshold value has been set with `setTouchThreshold()`, `setTouchCycles()` must be called *before* instantiating the first SpanButton() of type `SpanButton::TRIGGER_ON_TOUCH` so that HomeSpan will calibrate the touch threshold based on the new timing parameters specified
+
+### *SpanToggle(int pin, boolean (\*triggerType)(int)=PushButton::TRIGGER_ON_LOW, uint16_32 toggleTime=5)*
+ 
+Creating an instance of this **class** attaches a toggle-switch handler to the ESP32 *pin* specified.  This is a child class of *SpanButton* and thus derives all of the same functionality.  For example, you can set *triggerType* to PushButton::TRIGGER_ON_HIGH, create your own trigger function, etc. However, instead of HomeSpan calling `button(int pin, int pressType)` when a pushbutton is "pressed," HomeSpan calls the same `button()` method when the switch is "toggled" from one position to another.  In this case the parameter *pressType* that is passed into `button()` has a different set of enumerations:
+  * 3=switch is closed (`SpanToggle::CLOSED`)
+  * 4=switch is open (`SpanToggle::OPEN`)
+ 
+Note there are no *singleTime*, *longTime*, or *doubleTime* paramaters in the constructor since you can't single-press, double-press, or long-press a toggle switch.  Instead, the constructor supports the single parameter *toggleTime* (default=5ms if left unspecified) that sets the minimum time at which the switch needs to be moved to the closed position in order to trigger a call to the `button()` method.  This effectively "debounces" the toggle switch.
+ 
+SpanToggle also supports the following additional method:
+ 
+ * `int position()`
+   * returns the current position of the toggle switch (i.e. SpanToggle::CLOSED or SpanToggle::OPEN)
+   * is equivalent to the *pressType* parameter passed to the `button()` method, but can be called from anywhere in a sketch
+   * useful for reading the initial state of a contact switch upon start-up so that the initial value of Characteristic::ContactSensorState can be set accordingly
+   * example `sensorState=new Characteristic::ContactSensorState(toggleSwitch->position()==SpanToggle::OPEN);`
+ 
 ### *SpanUserCommand(char c, const char \*desc, void (\*f)(const char \*buf [,void \*obj]) [,void \*userObject])*
 
 Creating an instance of this **class** adds a user-defined command to the HomeSpan Command-Line Interface (CLI), where:
@@ -381,17 +520,18 @@ To create more than one user-defined command, simply create multiple instances o
 
 ### *CUSTOM_CHAR(name,uuid,perms,format,defaultValue,minValue,maxValue,staticRange)*
 ### *CUSTOM_CHAR_STRING(name,uuid,perms,defaultValue)*
+### *CUSTOM_CHAR_DATA(name,uuid,perms)*
 
-Creates a custom Characteristic that can be added to any Service.  Custom Characteristics are generally ignored by the Home App but may be used by other third-party applications (such as *Eve for HomeKit*).  The first form should be used create numerical Characterstics (e.g., UINT8, BOOL...). The second form is used to String-based Characteristics. Parameters are as follows (note that quotes should NOT be used in any of the macro parameters, except for *defaultValue* when applied to a STRING-based Characteristic):
+Creates a custom Characteristic that can be added to any Service.  Custom Characteristics are generally ignored by the Home App but may be used by other third-party applications (such as *Eve for HomeKit*).  The first form should be used create numerical Characterstics (e.g., UINT8, BOOL...). The second form is used to STRING-based Characteristics. The third form is used for DATA-based (i.e. byte-array) Characteristics.  Parameters are as follows (note that quotes should NOT be used in any of the macro parameters, except for *defaultValue* when applied to a STRING-based Characteristic):
 
 * *name* - the name of the custom Characteristic.  This will be added to the Characteristic namespace so that it is accessed the same as any HomeSpan Characteristic
 * *uuid* - the UUID of the Characteristic as defined by the manufacturer.  Must be *exactly* 36 characters in the form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX, where *X* represent a valid hexidecimal digit.  Leading zeros are required if needed as described more fully in HAP-R2 Section 6.6.1
 * *perms* - additive list of permissions as described in HAP-R2 Table 6-4.  Valid values are PR, PW, EV, AA, TW, HD, and WR
-* *format* - specifies the format of the Characteristic value, as described in HAP-R2 Table 6-5.  Valid value are BOOL, UINT8, UINT16, UNIT32, UINT64, INT, and FLOAT (note that the HomeSpan does not presently support the TLV8 or DATA formats).  Not applicable for Strings-based Characteristics
-* *defaultValue* - specifies the default value of the Characteristic if not defined during instantiation
-* *minValue* - specifies the default minimum range for a valid value, which may be able to be overriden by a call to `setRange()`.  Not applicable for Strings-based Characteristics
-* *minValue* - specifies the default minimum range for a valid value, which may be able to be overriden by a call to `setRange()`. Not applicable for Strings-based Characteristics
-* *staticRange* - set to *true* if *minValue* and *maxValue* are static and cannot be overridden with a call to `setRange()`.  Set to *false* if calls to `setRange()` are allowed.  Not applicable for Strings-based Characteristics
+* *format* - specifies the format of the Characteristic value, as described in HAP-R2 Table 6-5.  Valid value are BOOL, UINT8, UINT16, UNIT32, UINT64, INT, and FLOAT (note that the HomeSpan does not presently support the TLV8 formats).  Not applicable for the STRING or DATA Characteristic macros
+* *defaultValue* - specifies the default value of the Characteristic if not defined during instantiation.  Not applicable for the DATA Characteristic macro.
+* *minValue* - specifies the default minimum range for a valid value, which may be able to be overriden by a call to `setRange()`.  Not applicable for the STRING or DATA Characteristic macros
+* *minValue* - specifies the default minimum range for a valid value, which may be able to be overriden by a call to `setRange()`.  Not applicable for the STRING or DATA Characteristic macros
+* *staticRange* - set to *true* if *minValue* and *maxValue* are static and cannot be overridden with a call to `setRange()`.  Set to *false* if calls to `setRange()` are allowed.  Not applicable for the STRING or DATA Characteristic macros
 
 As an example, the first line below creates a custom Characteristic named "Voltage" with a UUID code that is recognized by the *Eve for HomeKit* app.  The parameters show that the Characteristic is read-only (PR) and notifications are enabled (EV).  The default range of allowed values is 0-240, with a default of 120.  The range *can* be overridden by subsequent calls to `setRange()`.  The second line below creates a custom read-only String-based Characteristic:
 
@@ -407,9 +547,13 @@ new Service::LightBulb();
   new Characteristic::UserTag();        // adds UserTag Characteristic and retains default initial value of "Tag 123"
 ```
 
-Note that Custom Characteristics must be created prior to calling `homeSpan.begin()`
+Note that Custom Characteristics must be created at the global level (i.e. not inside `setup()`) and prior to calling `homeSpan.begin()`
 
-> Advanced Tip: When presented with an unrecognized Custom Characteristic, *Eve for HomeKit* helpfully displays a *generic control* allowing you to interact with any Custom Characteristic you create in HomeSpan.  However, since Eve does not recognize the Characteristic, it will only render the generic control if the Characteristic includes a **description** field, which you can add to any Characteristic using the `setDescription()` method described above.  You may also want to use `setUnit()` and `setRange()` so that the Eve App displays a control with appropriate ranges for your Custom Characteristic.
+> Advanced Tip 1: When presented with an unrecognized Custom Characteristic, *Eve for HomeKit* helpfully displays a *generic control* allowing you to interact with any Custom Characteristic you create in HomeSpan.  However, since Eve does not recognize the Characteristic, it will only render the generic control if the Characteristic includes a **description** field, which you can add to any Characteristic using the `setDescription()` method described above.  You may also want to use `setUnit()` and `setRange()` so that the Eve App displays a control with appropriate ranges for your Custom Characteristic.
+ 
+> Advanced Tip 2: The DATA format is not currently used by any native Home App Characteristic, though it is part of the HAP-R2 specifications.  This format is included in HomeSpan because other applications, such as *Eve for HomeKit* do use these types of Characteristics to create functionality beyond that of the Home App, and are thus provided for advanced users to experiment.
+ 
+> Advanced Tip 3: When using multi-file sketches, the compiler will throw a "redefinition error" if you define the same Custom Characteristic in more than one file.  To avoid this error and allow the same Custom Characteristic to be used across more than one file, add the line `#define CUSTOM_CHAR_HEADER` *before* `#include "HomeSpan.h"` in each file containing a *duplicate* definition of a previously-defined Custom Characteristic.
 
 ### *CUSTOM_SERV(name,uuid)*
 
@@ -420,7 +564,7 @@ Creates a custom Service for use with third-party applications (such as *Eve for
 
 Custom Services may contain a mix of both Custom Characteristics and standard HAP Characteristics, though since the Service itself is custom, the Home App will ignore the entire Service even if it contains some standard HAP Characterstics.  Note that Custom Services must be created prior to calling `homeSpan.begin()`
 
-A fully worked example showing how to use both the ***CUSTOM_SERV()*** and ***CUSTOM_CHAR()*** macros to create a Pressure Sensor Accessory that is recognized by *Eve for HomeKit* can be found in the Arduino IDE under [*File → Examples → HomeSpan → Other Examples → CustomService*](../Other%20Examples/CustomService).
+A fully worked example showing how to use both the ***CUSTOM_SERV()*** and ***CUSTOM_CHAR()*** macros to create a Pressure Sensor Accessory that is recognized by *Eve for HomeKit* can be found in the Arduino IDE under [*File → Examples → HomeSpan → Other Examples → CustomService*](../examples/Other%20Examples/CustomService).
 
 ## Other Macros
 
@@ -466,4 +610,4 @@ If REQUIRED is defined in the main sketch *prior* to including the HomeSpan libr
   
 ---
 
-[↩️](README.md) Back to the Welcome page
+[↩️](../README.md) Back to the Welcome page

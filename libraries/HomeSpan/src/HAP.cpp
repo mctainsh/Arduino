@@ -1,7 +1,7 @@
 /*********************************************************************************
  *  MIT License
  *  
- *  Copyright (c) 2020-2022 Gregg E. Berman
+ *  Copyright (c) 2020-2023 Gregg E. Berman
  *  
  *  https://github.com/HomeSpan/HomeSpan
  *  
@@ -30,7 +30,6 @@
 #include <MD5Builder.h>
 
 #include "HAP.h"
-#include "HomeSpan.h"
 
 //////////////////////////////////////
 
@@ -41,14 +40,12 @@ void HAPClient::init(){
   nvs_open("SRP",NVS_READWRITE,&srpNVS);        // open SRP data namespace in NVS 
   nvs_open("HAP",NVS_READWRITE,&hapNVS);        // open HAP data namespace in NVS
 
-  if(!nvs_get_str(homeSpan.otaNVS,"OTADATA",NULL,&len)){                     // if found OTA data in NVS
-    nvs_get_str(homeSpan.otaNVS,"OTADATA",homeSpan.spanOTA.otaPwd,&len);       // retrieve data  
-  } else {
-    MD5Builder otaPwdHash;
-    otaPwdHash.begin();
-    otaPwdHash.add(DEFAULT_OTA_PASSWORD);
-    otaPwdHash.calculate();
-    otaPwdHash.getChars(homeSpan.spanOTA.otaPwd);
+  if(strlen(homeSpan.spanOTA.otaPwd)==0){                                 // OTA password has not been specified in sketch
+    if(!nvs_get_str(homeSpan.otaNVS,"OTADATA",NULL,&len)){                // if found OTA data in NVS...
+    nvs_get_str(homeSpan.otaNVS,"OTADATA",homeSpan.spanOTA.otaPwd,&len);  // ...retrieve data.
+    } else {                                                              // otherwise...
+    homeSpan.spanOTA.setPassword(DEFAULT_OTA_PASSWORD);                   // ...use default password
+    }
   }
 
   if(strlen(homeSpan.pairingCodeCommand)){                          // load verification setup code if provided
@@ -141,42 +138,17 @@ void HAPClient::init(){
   if(!nvs_get_blob(hapNVS,"HAPHASH",NULL,&len)){                 // if found HAP HASH structure
     nvs_get_blob(hapNVS,"HAPHASH",&homeSpan.hapConfig,&len);     // retrieve data    
   } else {
-    Serial.print("Resetting Accessory Configuration number...\n");
-    nvs_set_blob(hapNVS,"HAPHASH",&homeSpan.hapConfig,sizeof(homeSpan.hapConfig));     // update data
+    Serial.print("Resetting Database Hash...\n");
+    nvs_set_blob(hapNVS,"HAPHASH",&homeSpan.hapConfig,sizeof(homeSpan.hapConfig));     // save data (will default to all zero values, which will then be updated below)
     nvs_commit(hapNVS);                                                                // commit to NVS
   }
+
+  if(homeSpan.updateDatabase(false))       // create Configuration Number and Loop vector
+    Serial.printf("\nAccessory configuration has changed.  Updating configuration number to %d\n",homeSpan.hapConfig.configNumber);
+  else
+    Serial.printf("\nAccessory configuration number: %d\n",homeSpan.hapConfig.configNumber);
 
   Serial.print("\n");
-
-  uint8_t tHash[48];
-  TempBuffer <char> tBuf(homeSpan.sprintfAttributes(NULL)+1);
-  homeSpan.sprintfAttributes(tBuf.buf);  
-  mbedtls_sha512_ret((uint8_t *)tBuf.buf,tBuf.len(),tHash,1);     // create SHA-384 hash of JSON (can be any hash - just looking for a unique key)
-
-  if(memcmp(tHash,homeSpan.hapConfig.hashCode,48)){           // if hash code of current HAP database does not match stored hash code
-    memcpy(homeSpan.hapConfig.hashCode,tHash,48);             // update stored hash code
-    homeSpan.hapConfig.configNumber++;                        // increment configuration number
-    if(homeSpan.hapConfig.configNumber==65536)                // reached max value
-      homeSpan.hapConfig.configNumber=1;                      // reset to 1
-                   
-    Serial.print("Accessory configuration has changed.  Updating configuration number to ");
-    Serial.print(homeSpan.hapConfig.configNumber);
-    Serial.print("\n\n");
-    nvs_set_blob(hapNVS,"HAPHASH",&homeSpan.hapConfig,sizeof(homeSpan.hapConfig));     // update data
-    nvs_commit(hapNVS);                                                                // commit to NVS
-  } else {
-    Serial.print("Accessory configuration number: ");
-    Serial.print(homeSpan.hapConfig.configNumber);
-    Serial.print("\n\n");    
-  }
-
-  for(int i=0;i<homeSpan.Accessories.size();i++){                             // identify all services with over-ridden loop() methods
-    for(int j=0;j<homeSpan.Accessories[i]->Services.size();j++){
-      SpanService *s=homeSpan.Accessories[i]->Services[j];      
-      if((void(*)())(s->*(&SpanService::loop)) != (void(*)())(&SpanService::loop))    // save pointers to services in Loops vector
-        homeSpan.Loops.push_back(s);
-    }
-  }
 
 }
 
@@ -663,8 +635,9 @@ int HAPClient::postPairSetupURL(){
       mdns_service_txt_item_set("_hap","_tcp","sf","0");           // broadcast new status
       
       LOG1("\n*** ACCESSORY PAIRED! ***\n");
-      homeSpan.statusLED.on();
-      
+
+      STATUS_UPDATE(on(),HS_PAIRED)      
+            
       if(homeSpan.pairCallback)                     // if set, invoke user-defined Pairing Callback to indicate device has been paired
         homeSpan.pairCallback(true);
       
@@ -730,7 +703,7 @@ int HAPClient::postPairVerifyURL(){
 
         memcpy(iosCurveKey,tlv8.buf(kTLVType_PublicKey),32);       // save iosCurveKey (will persist until end of verification process)
 
-        int _x = crypto_scalarmult_curve25519(sharedCurveKey,secretCurveKey,iosCurveKey);      // generate (and persist) Pair Verify SharedSecret CurveKey from Accessory's Curve25519 secret key and Controller's Curve25519 public key (32 bytes)
+        crypto_scalarmult_curve25519(sharedCurveKey,secretCurveKey,iosCurveKey);      // generate (and persist) Pair Verify SharedSecret CurveKey from Accessory's Curve25519 secret key and Controller's Curve25519 public key (32 bytes)
 
         uint8_t *accessoryPairingID = accessory.ID;                    // set accessoryPairingID
         size_t accessoryPairingIDLen = 17;
@@ -944,7 +917,7 @@ int HAPClient::postPairingsURL(){
         Serial.print("\n*** ERROR: One or more of required 'Identifier,' 'PublicKey,' and 'Permissions' TLV records for this step is bad or missing\n\n");
         tlv8.clear();                                         // clear TLV records
         tlv8.val(kTLVType_State,pairState_M2);                // set State=<M2>
-        tlv8.val(kTLVType_Error,tagError_Unknown);           // set Error=Unknown (there is no specific error type for missing/bad TLV data)
+        tlv8.val(kTLVType_Error,tagError_Unknown);            // set Error=Unknown (there is no specific error type for missing/bad TLV data)
         break;
       }
 
@@ -952,32 +925,27 @@ int HAPClient::postPairingsURL(){
         Serial.print("\n*** ERROR: Controller making request does not have admin privileges to add/update other Controllers\n\n");
         tlv8.clear();                                         // clear TLV records
         tlv8.val(kTLVType_State,pairState_M2);                // set State=<M2>
-        tlv8.val(kTLVType_Error,tagError_Authentication);    // set Error=Authentication
+        tlv8.val(kTLVType_Error,tagError_Authentication);     // set Error=Authentication
         break;        
       }
 
-      if((newCont=findController(tlv8.buf(kTLVType_Identifier)))){
+      if((newCont=findController(tlv8.buf(kTLVType_Identifier))) && memcmp(tlv8.buf(kTLVType_PublicKey),newCont->LTPK,32)){         // requested Controller already exists, but LTPKs don't match
+        Serial.print("\n*** ERROR: Invalid request to update the LTPK of an exsiting Controller\n\n");
         tlv8.clear();                                         // clear TLV records
         tlv8.val(kTLVType_State,pairState_M2);                // set State=<M2>
-        if(!memcmp(cPair->LTPK,newCont->LTPK,32)){                       // requested Controller already exists and LTPK matches
-          newCont->admin=tlv8.val(kTLVType_Permissions)==1?true:false;     // update permission of matching Controller
-        } else {
-          tlv8.val(kTLVType_Error,tagError_Unknown);         // set Error=Unknown
-        }
+        tlv8.val(kTLVType_Error,tagError_Unknown);            // set Error=Unknown
         break;
       }
-      
-      if(!(newCont=getFreeController())){
+
+      if(!addController(tlv8.buf(kTLVType_Identifier),tlv8.buf(kTLVType_PublicKey),tlv8.val(kTLVType_Permissions)==1?true:false)){
         Serial.print("\n*** ERROR: Can't pair more than ");
         Serial.print(MAX_CONTROLLERS);
         Serial.print(" Controllers\n\n");
         tlv8.clear();                                         // clear TLV records
         tlv8.val(kTLVType_State,pairState_M2);                // set State=<M2>
-        tlv8.val(kTLVType_Error,tagError_MaxPeers);           // set Error=Unknown (there is no specific error type for missing/bad TLV data)
-        break;        
+        tlv8.val(kTLVType_Error,tagError_MaxPeers);           // set Error=MaxPeers
+        break;         
       }
-
-      addController(tlv8.buf(kTLVType_Identifier),tlv8.buf(kTLVType_PublicKey),tlv8.val(kTLVType_Permissions)==1?true:false);
       
       tlv8.clear();                                         // clear TLV records
       tlv8.val(kTLVType_State,pairState_M2);                // set State=<M2>
@@ -1071,7 +1039,7 @@ int HAPClient::getCharacteristicsURL(char *urlBuf){
       numIDs++;
   
   char *ids[numIDs];            // reserve space for number of IDs found
-  int flags=GET_AID;            // flags indicating which characteristic fields to include in response (HAP Table 6-13)
+  int flags=GET_VALUE|GET_AID;  // flags indicating which characteristic fields to include in response (HAP Table 6-13)
   numIDs=0;                     // reset number of IDs found
 
   char *lastSpace=strchr(urlBuf,' ');
@@ -1265,7 +1233,7 @@ int HAPClient::getStatusURL(){
     sprintf(clocktime,"Unknown");        
   }
 
-  char uptime[16];
+  char uptime[32];
   int seconds=esp_timer_get_time()/1e6;
   int secs=seconds%60;
   int mins=(seconds/=60)%60;
@@ -1276,7 +1244,7 @@ int HAPClient::getStatusURL(){
 
   String response="HTTP/1.1 200 OK\r\nContent-type: text/html\r\n\r\n";
 
-  response+="<html><head><title>HomeSpan Status</title>\n";
+  response+="<html><head><title>" + String(homeSpan.displayName) + "</title>\n";
   response+="<style>th, td {padding-right: 10px; padding-left: 10px; border:1px solid black;}";
   response+="</style></head>\n";
   response+="<body style=\"background-color:lightblue;\">\n";
@@ -1286,6 +1254,10 @@ int HAPClient::getStatusURL(){
   response+="<tr><td>Up Time:</td><td>" + String(uptime) + "</td></tr>\n";
   response+="<tr><td>Current Time:</td><td>" + String(clocktime) + "</td></tr>\n";
   response+="<tr><td>Boot Time:</td><td>" + String(homeSpan.webLog.bootTime) + "</td></tr>\n";
+  response+="<tr><td>Reset Reason Code:</td><td>" + String(esp_reset_reason()) + "</td></tr>\n";
+  response+="<tr><td>WiFi Disconnects:</td><td>" + String(homeSpan.connected/2) + "</td></tr>\n";
+  response+="<tr><td>WiFi Signal:</td><td>" + String(WiFi.RSSI()) + " dBm</td></tr>\n";
+  response+="<tr><td>WiFi Gateway:</td><td>" + WiFi.gatewayIP().toString() + "</td></tr>\n";
   response+="<tr><td>ESP32 Board:</td><td>" + String(ARDUINO_BOARD) + "</td></tr>\n";
   response+="<tr><td>Arduino-ESP Version:</td><td>" + String(ARDUINO_ESP_VERSION) + "</td></tr>\n";
   response+="<tr><td>ESP-IDF Version:</td><td>" + String(ESP_IDF_VERSION_MAJOR) + "." + String(ESP_IDF_VERSION_MINOR) + "." + String(ESP_IDF_VERSION_PATCH) + "</td></tr>\n";
@@ -1338,30 +1310,6 @@ int HAPClient::getStatusURL(){
 
 //////////////////////////////////////
 
-void HAPClient::callServiceLoops(){
-
-  homeSpan.snapTime=millis();                     // snap the current time for use in ALL loop routines
-  
-  for(int i=0;i<homeSpan.Loops.size();i++)        // loop over all services with over-ridden loop() methods
-    homeSpan.Loops[i]->loop();                    // call the loop() method
-}
-
-
-//////////////////////////////////////
-
-void HAPClient::checkPushButtons(){
-
-  for(int i=0;i<homeSpan.PushButtons.size();i++){                                // loop over all defined pushbuttons
-    SpanButton *sb=homeSpan.PushButtons[i];                                      // temporary pointer to SpanButton
-    if(sb->pushButton->triggered(sb->singleTime,sb->longTime,sb->doubleTime)){   // if the underlying PushButton is triggered
-      sb->service->button(sb->pin,sb->pushButton->type());                       // call the Service's button() routine with pin and type as parameters
-    }
-  }
-    
-}
-
-//////////////////////////////////////
-
 void HAPClient::checkNotifications(){
 
   if(!homeSpan.Notifications.empty()){                                          // if there are Notifications to process    
@@ -1372,7 +1320,7 @@ void HAPClient::checkNotifications(){
 
 //////////////////////////////////////
 
-void  HAPClient::checkTimedWrites(){
+void HAPClient::checkTimedWrites(){
 
   unsigned long cTime=millis();                                       // get current time
 
@@ -1583,16 +1531,10 @@ void HAPClient::charPrintRow(uint8_t *buf, int n){
 
 Controller *HAPClient::findController(uint8_t *id){
   
-  for(int i=0;i<MAX_CONTROLLERS;i++){         // loop over all controller slots
-    
-    if(controllers[i].allocated && !memcmp(controllers[i].ID,id,36)){     // found matching ID
-      LOG2("Found Controller: ");
-      if(homeSpan.logLevel>1)
-        charPrintRow(id,36);
-      LOG2(controllers[i].admin?" (admin)\n":" (regular)\n");    
-      return(controllers+i);                                              // return with pointer to matching controller
-    }
-  } // loop
+  for(int i=0;i<MAX_CONTROLLERS;i++){                                    // loop over all controller slots
+    if(controllers[i].allocated && !memcmp(controllers[i].ID,id,36))     // found matching ID
+      return(controllers+i);                                             // return with pointer to matching controller
+  }
 
   return(NULL);       // no match
 }
@@ -1601,8 +1543,7 @@ Controller *HAPClient::findController(uint8_t *id){
 
 Controller *HAPClient::getFreeController(){
   
-  for(int i=0;i<MAX_CONTROLLERS;i++){     // loop over all controller slots
-    
+  for(int i=0;i<MAX_CONTROLLERS;i++){     // loop over all controller slots   
     if(!controllers[i].allocated)         // found free slot
       return(controllers+i);              // return with pointer to free slot
   }
@@ -1616,7 +1557,7 @@ Controller *HAPClient::addController(uint8_t *id, uint8_t *ltpk, boolean admin){
 
   Controller *slot;
 
-  if((slot=findController(id))){
+  if((slot=findController(id))){               // found existing controller
     memcpy(slot->LTPK,ltpk,32);
     slot->admin=admin;
     LOG2("\n*** Updated Controller: ");
@@ -1626,7 +1567,7 @@ Controller *HAPClient::addController(uint8_t *id, uint8_t *ltpk, boolean admin){
     return(slot);    
   }
 
-  if((slot=getFreeController())){
+  if((slot=getFreeController())){              // get slot for new controller, if available
     slot->allocated=true;
     memcpy(slot->ID,id,36);
     memcpy(slot->LTPK,ltpk,32);
@@ -1638,9 +1579,6 @@ Controller *HAPClient::addController(uint8_t *id, uint8_t *ltpk, boolean admin){
     return(slot);       
   }
 
-  Serial.print("\n*** WARNING: No open slots.  Can't add Controller: ");
-  hexPrintRow(id,36);
-  Serial.print(admin?" (admin)\n\n":" (regular)\n\n\n");
   return(NULL);
 }       
   
@@ -1682,7 +1620,9 @@ void HAPClient::removeController(uint8_t *id){
       removeControllers();
       LOG1("That was last Admin Controller!  Removing any remaining Regular Controllers and unpairing Accessory\n");  
       mdns_service_txt_item_set("_hap","_tcp","sf","1");           // set Status Flag = 1 (Table 6-8)
-      homeSpan.statusLED.start(LED_PAIRING_NEEDED);
+
+      STATUS_UPDATE(start(LED_PAIRING_NEEDED),HS_PAIRING_NEEDED)
+
       if(homeSpan.pairCallback)                                    // if set, invoke user-defined Pairing Callback to indicate device has been paired
         homeSpan.pairCallback(false);
     }

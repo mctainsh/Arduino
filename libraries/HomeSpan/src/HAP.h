@@ -1,7 +1,7 @@
 /*********************************************************************************
  *  MIT License
  *  
- *  Copyright (c) 2020-2022 Gregg E. Berman
+ *  Copyright (c) 2020-2023 Gregg E. Berman
  *  
  *  https://github.com/HomeSpan/HomeSpan
  *  
@@ -90,7 +90,7 @@ struct HAPClient {
 
   // individual structures and data defined for each Hap Client connection
   
-  WiFiClient client=0;            // handle to client
+  WiFiClient client;              // handle to client
   Controller *cPair;              // pointer to info on current, session-verified Paired Controller (NULL=un-verified, and therefore un-encrypted, connection)
    
   // These keys are generated in the first call to pair-verify and used in the second call to pair-verify so must persist for a short period
@@ -142,8 +142,6 @@ struct HAPClient {
   static void removeControllers();                                                     // removes all Controllers (sets allocated flags to false for all slots)
   static void removeController(uint8_t *id);                                           // removes specific Controller.  If no remaining admin Controllers, remove all others (if any) as per HAP requirements.
   static void printControllers();                                                      // prints IDs of all allocated (paired) Controller
-  static void callServiceLoops();                                                      // call the loop() method for any Service with that over-rode the default method
-  static void checkPushButtons();                                                      // checks for PushButton presses and calls button() method of attached Services when found
   static void checkNotifications();                                                    // checks for Event Notifications and reports to controllers as needed (HAP Section 6.8)
   static void checkTimedWrites();                                                      // checks for expired Timed Write PIDs, and clears any found (HAP Section 6.7.2.4)
   static void eventNotify(SpanBuf *pObj, int nObj, int ignoreClient=-1);               // transmits EVENT Notifications for nObj SpanBuf objects, pObj, with optional flag to ignore a specific client
