@@ -39,371 +39,74 @@
 
 #include "HomeSpan.h"
 #include "extras/Pixel.h"  // include the HomeSpan Pixel class
+#include "globals.h"
 
-#if defined(CONFIG_IDF_TARGET_ESP32)
-
-#define NEOPIXEL_RGBW_PIN 6
-
-#elif defined(CONFIG_IDF_TARGET_ESP32S2)
-
-#define NEOPIXEL_RGBW_PIN 6
-
-#elif defined(CONFIG_IDF_TARGET_ESP32C3)
-
-#define NEOPIXEL_RGBW_PIN 6
-
-#endif
-
-CUSTOM_CHAR(Selector, 88888888-D0C1-4CFA-8D00-B044D1E9E989, PR + PW + EV, UINT8, 1, 1, 5, false);  // create Custom Characteristic to "select" special effects via Eve App
-//CUSTOM_CHAR(Selector, 00000001-0001-0001-0001-46637266EA00, PR + PW + EV, UINT8, 1, 1, 5, false);  // create Custom Characteristic to "select" special effects via Eve App
+#include "Pixel_Strand.h"
 
 boolean _powerOn = false;
+Pixel *_pixel;
+	
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 void TurnOnStrip(bool on)
 {
 	if (_powerOn == on)
 		return;
-	pinMode(5, on ? OUTPUT : INPUT);
+	pinMode(STRIP_POWER, on ? OUTPUT : INPUT);
 
 	Serial.println(on ? "Turn OFF" : "Turn OFF");
 
 	if (on)
-		digitalWrite(5, HIGH);
+		digitalWrite(STRIP_POWER, HIGH);
 	_powerOn = on;
 }
 
-////////////////////////////////////////////////////////////////////////////////////////
-// Addressable RGBW Pixel Strand of nPixel Pixels
-struct Pixel_Strand : Service::LightBulb
-{
-
-	struct SpecialEffect
-	{
-		Pixel_Strand *px;
-		const char *name;
-
-		SpecialEffect(Pixel_Strand *px, const char *name)
-		{
-			this->px = px;
-			this->name = name;
-			Serial.printf("Adding Effect %d: %s\n", px->Effects.size() + 1, name);
-		}
-
-		virtual void init() {}
-		virtual uint32_t update()
-		{
-			return (60000);
-		}
-		virtual int requiredBuffer()
-		{
-			return (0);
-		}
-	};
-
-	Characteristic::On power{ 0, true };
-	Characteristic::Hue H{ 0, true };
-	Characteristic::Saturation S{ 100, true };
-	Characteristic::Brightness V{ 100, true };
-	Characteristic::Selector effect{ 1, true };
-
-	vector<SpecialEffect *> Effects;
-
-	Pixel *pixel;
-	int nPixels;
-	Pixel::Color *colors;
-
-	// Time before the alarm activates again
-	uint32_t _alarmTime;
-
-	Pixel_Strand(int pin, int nPixels)
-	  : Service::LightBulb()
-	{
-
-		pixel = new Pixel(pin, true);  // creates RGBW pixel LED on specified pin using default timing parameters suitable for most SK68xx LEDs
-		this->nPixels = nPixels;	   // store number of Pixels in Strand
-
-		Effects.push_back(new ManualControl(this));
-		Effects.push_back(new KnightRider(this));
-		Effects.push_back(new Random(this));
-		Effects.push_back(new Twinkle(this));
-		Effects.push_back(new RaceTrack(this));
-
-		effect.setUnit("");	 // configures custom "Selector" characteristic for use with Eve HomeKit
-		effect.setDescription("Color Effect");
-		effect.setRange(1, Effects.size(), 1);
-
-		V.setRange(5, 100, 1);	// sets the range of the Brightness to be from a min of 5%, to a max of 100%, in steps of 1%
-
-		int bufSize = 0;
-
-		for (int i = 0; i < Effects.size(); i++)
-			bufSize = Effects[i]->requiredBuffer() > bufSize ? Effects[i]->requiredBuffer() : bufSize;
-
-		colors = (Pixel::Color *)calloc(bufSize, sizeof(Pixel::Color));	 // storage for dynamic pixel pattern
-
-		Serial.printf("\nConfigured Pixel_Strand on pin %d with %d pixels and %d effects.  Color buffer = %d pixels\n\n", pin, nPixels, Effects.size(), bufSize);
-
-		update();
-	}
-
-	////////////////////////////////////////////////////////////////////////////////////////////
-	// Update called when timer runs out
-	boolean update() override
-	{
-		if (!power.getNewVal())
-		{
-			Serial.println("Power -> OFF");
-			pixel->set(Pixel::Color().RGB(0, 0, 0, 0), nPixels);
-			TurnOnStrip(false);
-		}
-		else
-		{
-			TurnOnStrip(true);
-
-			// Call Init on the effect
-			Effects[effect.getNewVal() - 1]->init();
-
-			// Update the effect and get new alarm time
-			int32_t newInterval = Effects[effect.getNewVal() - 1]->update();
-			_alarmTime = millis() + newInterval;
-
-			Serial.printf("Pixel_Strand.Update() interval:%ld\r\n", newInterval);
-
-			// If the effect changed, record the change
-			if (effect.updated())
-				Serial.printf("Effect changed to: %s\n", Effects[effect.getNewVal() - 1]->name);
-		}
-		return (true);
-	}
-
-	/////////////////////////////////////////////////////////////////////////////////////////////
-	// Loop runs until alarm time.
-	#define OVERFLOW_MILLIS_LIMIT (10*1000)
-	void loop() override
-	{
-		// Do nothing if not turned on
-		if (!power.getVal())
-			return;
-
-
-		// Check if timer expired or overflow
-		unsigned long t = millis();
-		if (t > _alarmTime)
-		{
-			_alarmTime = t + Effects[effect.getNewVal() - 1]->update();
-		}
-		else if( _alarmTime > OVERFLOW_MILLIS_LIMIT && t < (_alarmTime - OVERFLOW_MILLIS_LIMIT) )
-		{
-			Serial.println("WARNING !!! OVERFLOW TRIGGERED!!!");
-			Serial.println("WARNING !!! OVERFLOW TRIGGERED!!!");
-			Serial.println("WARNING !!! OVERFLOW TRIGGERED!!!");
-			Serial.println("WARNING !!! OVERFLOW TRIGGERED!!!");
-			Serial.println("WARNING !!! OVERFLOW TRIGGERED!!!");
-			Serial.println("WARNING !!! OVERFLOW TRIGGERED!!!");
-			Serial.println("WARNING !!! OVERFLOW TRIGGERED!!!");
-			Serial.println("WARNING !!! OVERFLOW TRIGGERED!!!");
-			_alarmTime = t + Effects[effect.getNewVal() - 1]->update();
-		}
-	}
-
-	/////////////////////////////////////////////////////////////////////////////////////////////
-	struct KnightRider : SpecialEffect
-	{
-		int phase = 0;
-		int dir = 1;
-
-		KnightRider(Pixel_Strand *px)
-		  : SpecialEffect{ px, "KnightRider" } {}
-
-		void init() override
-		{
-			float level = px->V.getNewVal<float>();
-			for (int i = 0; i < px->nPixels; i++, level *= 0.8)
-			{
-				px->colors[px->nPixels + i - 1].HSV(px->H.getNewVal<float>(), px->S.getNewVal<float>(), level);
-				px->colors[px->nPixels - i - 1] = px->colors[px->nPixels + i - 1];
-			}
-		}
-
-		uint32_t update() override
-		{
-			px->pixel->set(px->colors + phase, px->nPixels);
-			if (phase == px->nPixels - 1)
-				dir = -1;
-			else if (phase == 0)
-				dir = 1;
-			phase += dir;
-			return (20);
-		}
-
-		int requiredBuffer() override
-		{
-			return (px->nPixels * 2 - 1);
-		}
-	};
-
-	/////////////////////////////////////////////////////////////////////////////////////////////
-	struct ManualControl : SpecialEffect
-	{
-
-		ManualControl(Pixel_Strand *px)
-		  : SpecialEffect{ px, "Manual Control" } {}
-
-		void init() override
-		{
-			TurnOnStrip(true);
-			px->pixel->set(Pixel::Color().HSV(px->H.getNewVal<float>(), px->S.getNewVal<float>(), px->V.getNewVal<float>()), px->nPixels);
-		}
-	};
-
-	/////////////////////////////////////////////////////////////////////////////////////////////
-	struct Random : SpecialEffect
-	{
-
-		Random(Pixel_Strand *px)
-		  : SpecialEffect{ px, "Random" } {}
-
-		uint32_t update() override
-		{
-			for (int i = 0; i < px->nPixels; i++)
-				px->colors[i].HSV((esp_random() % 6) * 60, 100, px->V.getNewVal<float>());
-			px->pixel->set(px->colors, px->nPixels);
-			return (1000);
-		}
-
-		int requiredBuffer() override
-		{
-			return (px->nPixels);
-		}
-	};
-
-
-	///////////////////////////////
-
-	struct Twinkle : SpecialEffect
-	{
-
-		int8_t *dir;
-
-		Twinkle(Pixel_Strand *px)
-		  : SpecialEffect{ px, "Twinkle" }
-		{
-			dir = (int8_t *)calloc(px->nPixels, sizeof(int8_t));
-		}
-
-		void init() override
-		{
-
-			for (int i = 0; i < px->nPixels; i++)
-			{
-				px->colors[i].RGB(0, 0, 0, 0);
-				dir[i] = 0;
-			}
-		}
-
-		uint32_t update() override
-		{
-			for (int i = 0; i < px->nPixels; i++)
-			{
-				if (px->colors[i] == Pixel::Color().RGB(0, 0, 0, 0))
-				{
-					if (esp_random() % 200 == 0)
-						dir[i] = 15;
-					else
-						dir[i] = 0;
-				}
-				else if (px->colors[i] == Pixel::Color().RGB(0, 0, 0, 255) || esp_random() % 10 == 0)
-				{
-					dir[i] = -15;
-				}
-				px->colors[i] += Pixel::Color().RGB(0, 0, 0, dir[i]);
-			}
-			px->pixel->set(px->colors, px->nPixels);
-			return (50);
-		}
-
-		int requiredBuffer() override
-		{
-			return (px->nPixels);
-		}
-	};
-
-	///////////////////////////////
-
-	struct RaceTrack : SpecialEffect
-	{
-
-		int H = 0;
-		int phase = 0;
-		int dir = 1;
-
-		RaceTrack(Pixel_Strand *px)
-		  : SpecialEffect{ px, "RaceTrack" } {}
-
-		uint32_t update() override
-		{
-			for (int i = 0; i < px->nPixels; i++)
-			{
-				if (i == phase)
-					px->colors[i].HSV(H, 100, px->V.getNewVal<float>());
-				else if (i == px->nPixels - 1 - phase)
-					px->colors[i].HSV(H + 180, 100, px->V.getNewVal<float>());
-				else
-					px->colors[i].RGB(0, 0, 0, 0);
-			}
-
-			px->pixel->set(px->colors, px->nPixels);
-			phase = (phase + dir) % px->nPixels;
-
-			if (phase == 0)
-			{
-				dir = 1;
-				H = (H + 10) % 360;
-			}
-			else if (phase == px->nPixels - 1)
-			{
-				dir = -1;
-				H = (H + 10) % 360;
-			}
-
-			return (20);
-		}
-
-		int requiredBuffer() override
-		{
-			return (px->nPixels);
-		}
-	};
-
-	///////////////////////////////
-};
 
 void onWifiLoaded()
 {
+//	_pixel->set(Pixel::Color().RGB(255, 0, 0, 99), 1);
 	//digitalWrite(STRIP_POWER, LOW);
 	//pixel->off();
+	//TurnOnStrip(false);
 }
-
-const char *SERIAL_NO = "JRM.008.19";
-const char *BRIDGE_NAME = "ChristmasLights";
-const char *PARING_CODE = "88880019";
 
 void setup()
 {
-
 	Serial.begin(115200);
-	Serial.printf("JRM:Starting V2.00 %s\n", PARING_CODE);
+	Serial.printf("JRM:Starting V%s %s\n", MY_VERSION, PARING_CODE);
 
-
+	// Show a few pixels
+	Serial.printf("Activate strip on pin %d\n", NEOPIXEL_RGBW_PIN);
 	TurnOnStrip(true);
+	_pixel = new Pixel(NEOPIXEL_RGBW_PIN, true);  // creates RGBW pixel LED on specified pin using default timing parameters suitable for most SK68xx LEDs
+	_pixel->set(Pixel::Color().RGB(0, 254, 0, 99), 10);
+
+	// System detail
+	Serial.printf("Internal heap\n");
+	Serial.printf("  Total       %.2fKb\n", ESP.getHeapSize() / 1000.0);
+	Serial.printf("  Free        %.2fkb\n", ESP.getFreeHeap() / 1000.0);
+	Serial.printf("SPIRam\n");
+	Serial.printf("  Total heap  %d\n", ESP.getPsramSize());
+	Serial.printf("  Free Heap   %d\n", ESP.getFreePsram());
+	Serial.printf("Flash\n");
+	Serial.printf("  Sketch size %.2fMb\n", ESP.getSketchSize() / 1000000.0);
+	Serial.printf("  Sketch free %.2fMb\n", ESP.getFreeSketchSpace() / 1000000.0);
+	Serial.printf("  Size        %.2fMb\n", ESP.getFlashChipSize() / 1000000.0);
+	Serial.printf("  Speed       %.2fMHz\n", ESP.getFlashChipSpeed() / 1000000.0);
+	Serial.printf("  Mode        %d\n", ESP.getFlashChipMode());
+	Serial.printf("  Cycles      %d\n", ESP.getCycleCount());
+	Serial.printf("Chip\n");
+	Serial.printf("  Cpu Freq    %dMHz\n", ESP.getCpuFreqMHz());
+	Serial.printf("  Cores       %d\n", ESP.getChipCores());
+	Serial.printf("  Model       %s\n", ESP.getChipModel());
+	Serial.printf("  Revision    %d\n", ESP.getChipRevision());
+	Serial.printf("  SDK Version %s\n", ESP.getSdkVersion());
 
 	homeSpan.setWifiCallback(onWifiLoaded);
 
-
-	homeSpan.setStatusPin(10);		// 9 Is blue, 10 is red
-	homeSpan.setStatusAutoOff(30);	// Turn off staqtus LED after 30 seconds
-	homeSpan.setControlPin(9);		// 18 is nearest GND, 9 is PRG Button
+	homeSpan.setStatusPin(STATUS_LED_PIN);				// 9 Is blue, 10 is red
+	homeSpan.setStatusAutoOff(30);						// Turn off staqtus LED after 30 seconds
+	homeSpan.setControlPin(CONTROL_SWITCH_PIN);			// 18 is nearest GND, 9 is PRG Button
 
 	// Setup the parting code (Should be unique on the network)
 	homeSpan.setPairingCode(PARING_CODE);
@@ -416,21 +119,20 @@ void setup()
 
 	new SpanAccessory();
 	new Service::AccessoryInformation();
-	new Characteristic::Name("Holiday Lights");
-	new Characteristic::Manufacturer("HomeSpan");
-	new Characteristic::SerialNumber("888-ABC");
-	new Characteristic::Model("NeoPixel 60 RGBW LEDs");
+	new Characteristic::Name(BRIDGE_NAME);
+	new Characteristic::Manufacturer(MANUFACTURER);
+	new Characteristic::SerialNumber(SERIAL_NO);
+	new Characteristic::Model("John McTainsh HolidayNeoPixel");
 	new Characteristic::FirmwareRevision("1.0");
 	new Characteristic::Identify();
 
 	new Service::HAPProtocolInformation();
 	new Characteristic::Version("1.1.0");
 
-	new Pixel_Strand(NEOPIXEL_RGBW_PIN, 60);
+	new Pixel_Strand(_pixel, PIXEL_COUNT);
 }
 
 void loop()
 {
 	homeSpan.poll();
 }
-
