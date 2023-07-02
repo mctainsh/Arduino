@@ -1,5 +1,5 @@
 
-CUSTOM_CHAR(Selector, 88888888-D0C1-4CFA-8D00-B044D1E9E989, PR + PW + EV, UINT8, 1, 1, 5, false);  // create Custom Characteristic to "select" special effects via Eve App
+CUSTOM_CHAR(Selector, 88888888-D0C1-4CFA-8D00-B044D1E9E989, PR + PW + EV, UINT8, 1, 1, 6, false);  // create Custom Characteristic to "select" special effects via Eve App
 //CUSTOM_CHAR(Selector, 00000001-0001-0001-0001-46637266EA00, PR + PW + EV, UINT8, 1, 1, 5, false);  // create Custom Characteristic to "select" special effects via Eve App
 
 #define OVERFLOW_MILLIS_LIMIT (10 * 1000)
@@ -60,7 +60,8 @@ struct Pixel_Strand : Service::LightBulb
 		Effects.push_back(new KnightRider2(this));
 		Effects.push_back(new Random3(this));
 		Effects.push_back(new Twinkle4(this));
-		Effects.push_back(new RaceTrack5(this));
+		Effects.push_back(new Rainbow5(this));
+		Effects.push_back(new RaceTrack6(this));
 
 		effect.setUnit("");	 // configures custom "Selector" characteristic for use with Eve HomeKit
 		effect.setDescription("Color Effect");
@@ -68,8 +69,8 @@ struct Pixel_Strand : Service::LightBulb
 
 		V.setRange(5, 100, 1);	// sets the range of the Brightness to be from a min of 5%, to a max of 100%, in steps of 1%
 
+		// Determine the biggest buffer size required
 		int bufSize = 0;
-
 		for (int i = 0; i < Effects.size(); i++)
 			bufSize = Effects[i]->requiredBuffer() > bufSize ? Effects[i]->requiredBuffer() : bufSize;
 
@@ -153,6 +154,8 @@ struct Pixel_Strand : Service::LightBulb
 				px->V.getNewVal<float>()), 
 				px->nPixels);
 		}
+
+		// TODO : Refresh every 5 seconds
 	};
 
 
@@ -212,45 +215,62 @@ struct Pixel_Strand : Service::LightBulb
 	};
 
 
-	///////////////////////////////
-
+	/////////////////////////////////////////////////////////////////////////////////////////////
 	struct Twinkle4 : SpecialEffect
 	{
 
-		int8_t *dir;
+		int8_t *_dir;			// Array of directions to apply to the data
+		int8_t *_colours;			// Colour to apply 0 = R, 1 = G, 
 
-		Twinkle4(Pixel_Strand *px)
-		  : SpecialEffect{ px, "Twinkle" }
+		// Allocate an array of direction values
+		Twinkle4(Pixel_Strand *px)  : SpecialEffect{ px, "Twinkle" }
 		{
-			dir = (int8_t *)calloc(px->nPixels, sizeof(int8_t));
+			_dir = (int8_t *)calloc(px->nPixels, sizeof(int8_t));
+			_colours = (int8_t *)calloc(px->nPixels, sizeof(int8_t));
 		}
 
+		// Clear all the pixels
 		void init() override
 		{
-
 			for (int i = 0; i < px->nPixels; i++)
 			{
-				px->colors[i].RGB(0, 0, 0, 0);
-				dir[i] = 0;
+				px->colors[i].RGB(0, 0, 0);
+				_dir[i] = 0;
 			}
 		}
 
 		uint32_t update() override
 		{
+			const Pixel::Color BLACK = Pixel::Color().RGB(0, 0, 0);
 			for (int i = 0; i < px->nPixels; i++)
 			{
-				if (px->colors[i] == Pixel::Color().RGB(0, 0, 0, 0))
+				if (px->colors[i] == BLACK)
 				{
+					// (0.5%) of the time Start turning on the star
 					if (esp_random() % 200 == 0)
-						dir[i] = 15;
+					{
+						_dir[i] = 15;
+						_colours[i] = ( esp_random() % 8 ) + 1;
+					}
 					else
-						dir[i] = 0;
+					{
+						_dir[i] = 0;
+					}
 				}
-				else if (px->colors[i] == Pixel::Color().RGB(0, 0, 0, 255) || esp_random() % 10 == 0)
+				//else if (px->colors[i] == BLACK || esp_random() % 10 == 0)
+				else if (esp_random() % 10 == 0)
 				{
-					dir[i] = -15;
+					// Randomly dim it 10%
+					_dir[i] = -15;
 				}
-				px->colors[i] += Pixel::Color().RGB(0, 0, 0, dir[i]);
+
+				int8_t dir = _dir[i];
+				int8_t color = _colours[i];
+				// Add the direction value to the pixel
+				px->colors[i] += Pixel::Color().RGB(
+					(color & 0x01) > 0 ? dir : 0,	
+					(color & 0x02) > 0 ? dir : 0,	
+					(color & 0x04) > 0 ? dir : 0);				
 			}
 			px->pixel->set(px->colors, px->nPixels);
 			return (50);
@@ -262,17 +282,39 @@ struct Pixel_Strand : Service::LightBulb
 		}
 	};
 
-	///////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////////////////////
+	struct Rainbow5 : SpecialEffect
+	{
+		int _startHue = 0;
 
-	struct RaceTrack5 : SpecialEffect
+		Rainbow5(Pixel_Strand *px) : SpecialEffect{ px, "Rainbow" } {}
+
+		uint32_t update() override
+		{
+			for (int i = 0; i < px->nPixels; i++)
+			{
+				px->colors[i].HSV( _startHue + i , 100, px->V.getNewVal<float>());
+			}
+			_startHue += 1;
+			px->pixel->set(px->colors, px->nPixels);
+			return (1);
+		}
+
+		int requiredBuffer() override
+		{
+			return (px->nPixels);
+		}
+	};
+
+	/////////////////////////////////////////////////////////////////////////////////////////////
+	struct RaceTrack6 : SpecialEffect
 	{
 
 		int H = 0;
 		int phase = 0;
 		int dir = 1;
 
-		RaceTrack5(Pixel_Strand *px)
-		  : SpecialEffect{ px, "RaceTrack" } {}
+		RaceTrack6(Pixel_Strand *px) : SpecialEffect{ px, "RaceTrack" } {}
 
 		uint32_t update() override
 		{

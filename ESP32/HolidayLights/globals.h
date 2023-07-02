@@ -1,6 +1,6 @@
 #pragma once
 
-#define MY_VERSION "2.01"
+#define MY_VERSION "2.03"
 // Maximum power is 255. 50 is a good value
 //  88 = 2.9A on 308 LEDs
 // 188 = 3.8A on 308 LEDssmart

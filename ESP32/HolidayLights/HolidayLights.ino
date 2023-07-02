@@ -72,14 +72,22 @@ void onWifiLoaded()
 
 void setup()
 {
+	const int32_t STATUS_PIXELS = 5;
+	Pixel::Color *colors = (Pixel::Color *)calloc(STATUS_PIXELS, sizeof(Pixel::Color));
+	colors[0].RGB(255,0,0);
+	colors[1].RGB(0,0,255);
+	colors[2].RGB(255,0,255);
+	//colors[3].RGB(255,255,255);
+	colors[3].RGB(0,255,0);
+
 	Serial.begin(115200);
 	Serial.printf("JRM:Starting V%s %s\n", MY_VERSION, PARING_CODE);
 
 	// Show a few pixels
 	Serial.printf("Activate strip on pin %d\n", NEOPIXEL_RGBW_PIN);
 	TurnOnStrip(true);
-	_pixel = new Pixel(NEOPIXEL_RGBW_PIN, true);  // creates RGBW pixel LED on specified pin using default timing parameters suitable for most SK68xx LEDs
-	_pixel->set(Pixel::Color().RGB(0, 254, 0, 99), 10);
+	_pixel = new Pixel(NEOPIXEL_RGBW_PIN, false);  // creates RGBW pixel LED on specified pin using default timing parameters suitable for most SK68xx LEDs
+	_pixel->set(colors, 1);
 
 	// System detail
 	Serial.printf("Internal heap\n");
@@ -102,6 +110,8 @@ void setup()
 	Serial.printf("  Revision    %d\n", ESP.getChipRevision());
 	Serial.printf("  SDK Version %s\n", ESP.getSdkVersion());
 
+	// Setup homespan
+	_pixel->set(colors, 2);
 	homeSpan.setWifiCallback(onWifiLoaded);
 
 	homeSpan.setStatusPin(STATUS_LED_PIN);				// 9 Is blue, 10 is red
@@ -117,6 +127,8 @@ void setup()
 
 	homeSpan.begin(Category::Lighting, "Holiday Lights");
 
+	// Setup the acessory
+	_pixel->set(colors, 3);
 	new SpanAccessory();
 	new Service::AccessoryInformation();
 	new Characteristic::Name(BRIDGE_NAME);
@@ -130,6 +142,11 @@ void setup()
 	new Characteristic::Version("1.1.0");
 
 	new Pixel_Strand(_pixel, PIXEL_COUNT);
+
+	// Complete
+	//_pixel->set(Pixel::Color().RGB(0, 255, 0), 4);
+	_pixel->set(colors, 4);
+
 }
 
 void loop()
