@@ -1,6 +1,6 @@
 #pragma once
 
-#define MY_VERSION "2.03"
+#define MY_VERSION "2.08"
 // Maximum power is 255. 50 is a good value
 //  88 = 2.9A on 308 LEDs
 // 188 = 3.8A on 308 LEDssmart
@@ -75,5 +75,10 @@ const char* PARING_CODE = "88880019";
 
 //#include "NeoPixel.h"
 
-//extern NeoPixel _neoPixel;
+extern Pixel g_pixel;
+extern Pixel::Color *g_colors;
+
 void TurnOnStrip(bool on);
+
+CUSTOM_CHAR(Selector, 88888888-D0C1-4CFA-8D00-B044D1E9E989, PR + PW + EV, UINT8, 1, 1, 6, false);  // create Custom Characteristic to "select" special effects via Eve App
+//CUSTOM_CHAR(Selector, 00000001-0001-0001-0001-46637266EA00, PR + PW + EV, UINT8, 1, 1, 5, false);  // create Custom Characteristic to "select" special effects via Eve App

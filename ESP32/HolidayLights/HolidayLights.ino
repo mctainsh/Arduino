@@ -44,7 +44,12 @@
 #include "Pixel_Strand.h"
 
 boolean _powerOn = false;
-Pixel *_pixel;
+
+// Neopixel strip
+Pixel g_pixel = Pixel(NEOPIXEL_RGBW_PIN, false);
+
+// Colour for each pixel on the strip (calloc'ed) later
+Pixel::Color *g_colors;
 	
 
 /////////////////////////////////////////////////////////////////////////////////////////////
@@ -86,8 +91,8 @@ void setup()
 	// Show a few pixels
 	Serial.printf("Activate strip on pin %d\n", NEOPIXEL_RGBW_PIN);
 	TurnOnStrip(true);
-	_pixel = new Pixel(NEOPIXEL_RGBW_PIN, false);  // creates RGBW pixel LED on specified pin using default timing parameters suitable for most SK68xx LEDs
-	_pixel->set(colors, 1);
+	//g_pixel = new Pixel(NEOPIXEL_RGBW_PIN, false);  // creates RGBW pixel LED on specified pin using default timing parameters suitable for most SK68xx LEDs
+	g_pixel.set(colors, 1);
 
 	// System detail
 	Serial.printf("Internal heap\n");
@@ -109,9 +114,16 @@ void setup()
 	Serial.printf("  Model       %s\n", ESP.getChipModel());
 	Serial.printf("  Revision    %d\n", ESP.getChipRevision());
 	Serial.printf("  SDK Version %s\n", ESP.getSdkVersion());
+	
+	//Serial.printf("WIFI\n");
+	//Serial.printf("  IP address  %s\n", WiFi.localIP());
+	//Serial.printf("  Mac Address %s\n", Wifi.macAddress());
+  	//Serial.printf("  Subnet Mas  %s\n", WiFi.subnetMask());
+  	//Serial.printf("  Gateway IP  %s\n", WiFi.gatewayIP());
+  	//Serial.print( "  DNS         %s\n", WiFi.dnsIP());
 
 	// Setup homespan
-	_pixel->set(colors, 2);
+	g_pixel.set(colors, 2);
 	homeSpan.setWifiCallback(onWifiLoaded);
 
 	homeSpan.setStatusPin(STATUS_LED_PIN);				// 9 Is blue, 10 is red
@@ -128,7 +140,7 @@ void setup()
 	homeSpan.begin(Category::Lighting, "Holiday Lights");
 
 	// Setup the acessory
-	_pixel->set(colors, 3);
+	g_pixel.set(colors, 3);
 	new SpanAccessory();
 	new Service::AccessoryInformation();
 	new Characteristic::Name(BRIDGE_NAME);
@@ -141,11 +153,11 @@ void setup()
 	new Service::HAPProtocolInformation();
 	new Characteristic::Version("1.1.0");
 
-	new Pixel_Strand(_pixel, PIXEL_COUNT);
+	new Pixel_Strand(&g_pixel, PIXEL_COUNT);
 
 	// Complete
 	//_pixel->set(Pixel::Color().RGB(0, 255, 0), 4);
-	_pixel->set(colors, 4);
+	g_pixel.set(colors, 4);
 
 }
 
