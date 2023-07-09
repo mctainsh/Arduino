@@ -1,6 +1,6 @@
 #pragma once
 
-#define MY_VERSION "2.08"
+#define MY_VERSION "2.18"
 // Maximum power is 255. 50 is a good value
 //  88 = 2.9A on 308 LEDs
 // 188 = 3.8A on 308 LEDssmart
@@ -8,15 +8,6 @@
 
 #define PIXEL_COUNT 108		// Home Bed
 #define PIXEL_COUNT 300		// Long strip
-
-// Use this if switching based non CPU
-//#if defined(CONFIG_IDF_TARGET_ESP32)
-//	#define NEOPIXEL_RGBW_PIN 6
-//#elif defined(CONFIG_IDF_TARGET_ESP32S2)
-//	#define NEOPIXEL_RGBW_PIN 6
-//#elif defined(CONFIG_IDF_TARGET_ESP32C3)
-//	#define NEOPIXEL_RGBW_PIN 6
-//#endif
 
 // Which input switch pin on the Arduino is connected to the NeoPixels?
 // Version 1 = 2
@@ -70,10 +61,6 @@ const char* MANUFACTURER = "Secure Hub";
 const char* SERIAL_NO   = "JRM.008.19";
 const char* BRIDGE_NAME = "Christmas Lights";	// Kitchen Cabinet
 const char* PARING_CODE = "88880019";
-
-
-
-//#include "NeoPixel.h"
 
 extern Pixel g_pixel;
 extern Pixel::Color *g_colors;

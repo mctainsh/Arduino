@@ -50,7 +50,7 @@ Pixel g_pixel = Pixel(NEOPIXEL_RGBW_PIN, false);
 
 // Colour for each pixel on the strip (calloc'ed) later
 Pixel::Color *g_colors;
-	
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 void TurnOnStrip(bool on)
@@ -66,10 +66,9 @@ void TurnOnStrip(bool on)
 	_powerOn = on;
 }
 
-
 void onWifiLoaded()
 {
-//	_pixel->set(Pixel::Color().RGB(255, 0, 0, 99), 1);
+	//	_pixel->set(Pixel::Color().RGB(255, 0, 0, 99), 1);
 	//digitalWrite(STRIP_POWER, LOW);
 	//pixel->off();
 	//TurnOnStrip(false);
@@ -79,11 +78,10 @@ void setup()
 {
 	const int32_t STATUS_PIXELS = 5;
 	Pixel::Color *colors = (Pixel::Color *)calloc(STATUS_PIXELS, sizeof(Pixel::Color));
-	colors[0].RGB(255,0,0);
-	colors[1].RGB(0,0,255);
-	colors[2].RGB(255,0,255);
-	//colors[3].RGB(255,255,255);
-	colors[3].RGB(0,255,0);
+	colors[0].RGB(255, 0, 0);
+	colors[1].RGB(0, 0, 255);
+	colors[2].RGB(255, 0, 255);
+	colors[3].RGB(0, 255, 0);
 
 	Serial.begin(115200);
 	Serial.printf("JRM:Starting V%s %s\n", MY_VERSION, PARING_CODE);
@@ -91,7 +89,6 @@ void setup()
 	// Show a few pixels
 	Serial.printf("Activate strip on pin %d\n", NEOPIXEL_RGBW_PIN);
 	TurnOnStrip(true);
-	//g_pixel = new Pixel(NEOPIXEL_RGBW_PIN, false);  // creates RGBW pixel LED on specified pin using default timing parameters suitable for most SK68xx LEDs
 	g_pixel.set(colors, 1);
 
 	// System detail
@@ -114,21 +111,21 @@ void setup()
 	Serial.printf("  Model       %s\n", ESP.getChipModel());
 	Serial.printf("  Revision    %d\n", ESP.getChipRevision());
 	Serial.printf("  SDK Version %s\n", ESP.getSdkVersion());
-	
+
 	//Serial.printf("WIFI\n");
 	//Serial.printf("  IP address  %s\n", WiFi.localIP());
 	//Serial.printf("  Mac Address %s\n", Wifi.macAddress());
-  	//Serial.printf("  Subnet Mas  %s\n", WiFi.subnetMask());
-  	//Serial.printf("  Gateway IP  %s\n", WiFi.gatewayIP());
-  	//Serial.print( "  DNS         %s\n", WiFi.dnsIP());
+	//Serial.printf("  Subnet Mas  %s\n", WiFi.subnetMask());
+	//Serial.printf("  Gateway IP  %s\n", WiFi.gatewayIP());
+	//Serial.print( "  DNS         %s\n", WiFi.dnsIP());
 
 	// Setup homespan
 	g_pixel.set(colors, 2);
 	homeSpan.setWifiCallback(onWifiLoaded);
 
-	homeSpan.setStatusPin(STATUS_LED_PIN);				// 9 Is blue, 10 is red
-	homeSpan.setStatusAutoOff(30);						// Turn off staqtus LED after 30 seconds
-	homeSpan.setControlPin(CONTROL_SWITCH_PIN);			// 18 is nearest GND, 9 is PRG Button
+	homeSpan.setStatusPin(STATUS_LED_PIN);		 // 9 Is blue, 10 is red
+	homeSpan.setStatusAutoOff(30);				 // Turn off staqtus LED after 30 seconds
+	homeSpan.setControlPin(CONTROL_SWITCH_PIN);	 // 18 is nearest GND, 9 is PRG Button
 
 	// Setup the parting code (Should be unique on the network)
 	homeSpan.setPairingCode(PARING_CODE);
@@ -156,9 +153,7 @@ void setup()
 	new Pixel_Strand(&g_pixel, PIXEL_COUNT);
 
 	// Complete
-	//_pixel->set(Pixel::Color().RGB(0, 255, 0), 4);
 	g_pixel.set(colors, 4);
-
 }
 
 void loop()
