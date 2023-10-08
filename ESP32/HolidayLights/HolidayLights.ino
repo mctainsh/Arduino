@@ -45,7 +45,7 @@
 
 boolean _powerOn = false;
 
-// Neopixel strip
+// Neopixel strip 
 Pixel g_pixel = Pixel(NEOPIXEL_RGBW_PIN, false);
 
 // Colour for each pixel on the strip (calloc'ed) later
@@ -76,6 +76,10 @@ void onWifiLoaded()
 
 void setup()
 {
+	// Define colour map
+
+
+	// Allocation the memory for status pixel display
 	const int32_t STATUS_PIXELS = 5;
 	Pixel::Color *colors = (Pixel::Color *)calloc(STATUS_PIXELS, sizeof(Pixel::Color));
 	colors[0].RGB(255, 0, 0);
@@ -134,7 +138,7 @@ void setup()
 	homeSpan.enableAutoStartAP();
 	//homeSpan.setWifiCredentials("RhinoNBN", "##########");
 
-	homeSpan.begin(Category::Lighting, "Holiday Lights");
+	homeSpan.begin(Category::Lighting, BRIDGE_NAME);
 
 	// Setup the acessory
 	g_pixel.set(colors, 3);

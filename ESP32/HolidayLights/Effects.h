@@ -23,7 +23,9 @@ struct SpecialEffect
 	{
 		_h = h;
 		_s = s;
-		_v = v;
+
+		// Power 0 100 % can be 0 to 255
+		_v = v * 0.50;
 	}
 	virtual uint32_t update()
 	{
@@ -45,11 +47,14 @@ struct ManualControl_1 : SpecialEffect
 	void init(float h, float s, float v) override
 	{
 		SpecialEffect::init(h, s, v);
-		TurnOnStrip(true);
-		g_pixel.set(Pixel::Color().HSV(h, s, v), PIXEL_COUNT);
 	}
 
-	// TODO : Refresh every 5 seconds
+	uint32_t update() override
+	{
+		TurnOnStrip(true);
+		g_pixel.set(Pixel::Color().HSV(_h, _s, _v), PIXEL_COUNT);
+		return (5 * 1000);
+	}
 };
 
 
