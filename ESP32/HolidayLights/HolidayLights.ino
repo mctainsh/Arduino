@@ -135,6 +135,7 @@ void setup()
 	homeSpan.setPairingCode(PARING_CODE);
 
 	// Setup to jump to WIFI setup if no WIFI config
+	//homeSpan.setApPassword("homespan");
 	homeSpan.enableAutoStartAP();
 	//homeSpan.setWifiCredentials("RhinoNBN", "##########");
 

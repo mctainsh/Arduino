@@ -1,5 +1,6 @@
 #pragma once
 
+// NOTE : Accessa Point Password "homespan"
 
 ///////////////////////////////////////////////////////////////////////////////
 // Setting up lights
@@ -83,11 +84,15 @@ const char* MANUFACTURER = "Secure Hub";
 //const char* SERIAL_NO   = "JRM.008.19";		// Master Bedroom Top Lights
 //const char* BRIDGE_NAME = "Christmas Lights";	
 //const char* PARING_CODE = "88880019";
-const char* SERIAL_NO   = "JRM.008.20";			// Farm Master bedroom
-const char* BRIDGE_NAME = "Farm Room Lights";	
-const char* PARING_CODE = "88880020";
+//const char* SERIAL_NO   = "JRM.008.20";			// Farm Master bedroom
+//const char* BRIDGE_NAME = "Farm Room Lights";	
+//const char* PARING_CODE = "88880020";
+const char* SERIAL_NO   = "JRM.008.21";			// Claudia's TV
+const char* BRIDGE_NAME = "Claudias TV Lights";	
+const char* PARING_CODE = "88880021";
 
-#define PIXEL_COUNT 300		
+#define PIXEL_COUNT 300
+// Claudia TV = 135		
 
 // The Neopixel controller
 extern Pixel g_pixel;
