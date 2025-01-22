@@ -27,6 +27,9 @@
 
 // HomeSpan Addressable RGB LED Example
 
+// Add Homespan
+// Add ESP32C3 Dev Module
+
 // Demonstrates use of HomeSpan Pixel Class that provides for control of single-wire
 // addressable RGB LEDs, such as the SK68xx or WS28xx models found in many devices,
 // including the Espressif ESP32, ESP32-S2, and ESP32-C3 development boards.
@@ -38,19 +41,22 @@
 #define REQUIRED VERSION(1, 5, 0)
 
 #include "HomeSpan.h"
-#include "extras/Pixel.h"  // include the HomeSpan Pixel class
+//#include "extras/Pixel.h"  // include the HomeSpan Pixel class
+#include <Adafruit_NeoPixel.h>
 #include "globals.h"
 
 #include "Pixel_Strand.h"
 
 boolean _powerOn = false;
 
+//NeoPixel() : Adafruit_NeoPixel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800)
 // Neopixel strip 
+//Pixel g_pixel = Pixel(NEOPIXEL_RGBW_PIN, false);	// 12V
 Pixel g_pixel = Pixel(NEOPIXEL_RGBW_PIN, false);
+//Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 // Colour for each pixel on the strip (calloc'ed) later
 Pixel::Color *g_colors;
-
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 void TurnOnStrip(bool on)
@@ -77,7 +83,6 @@ void onWifiLoaded()
 void setup()
 {
 	// Define colour map
-
 
 	// Allocation the memory for status pixel display
 	const int32_t STATUS_PIXELS = 5;
@@ -128,7 +133,7 @@ void setup()
 	homeSpan.setWifiCallback(onWifiLoaded);
 
 	homeSpan.setStatusPin(STATUS_LED_PIN);		 // 9 Is blue, 10 is red
-	homeSpan.setStatusAutoOff(30);				 // Turn off staqtus LED after 30 seconds
+	homeSpan.setStatusAutoOff(30);				 // Turn off status LED after 30 seconds
 	homeSpan.setControlPin(CONTROL_SWITCH_PIN);	 // 18 is nearest GND, 9 is PRG Button
 
 	// Setup the parting code (Should be unique on the network)
@@ -161,7 +166,13 @@ void setup()
 	g_pixel.set(colors, 4);
 }
 
+//Rainbow_5 rain = Rainbow_5();
+
+
 void loop()
 {
+//TurnOnStrip(true);
+//rain.update();
+//return;
 	homeSpan.poll();
 }

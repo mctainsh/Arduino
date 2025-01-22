@@ -5,6 +5,9 @@ build.warn_data_percentage=75
 cache.enable=true
 compiler.cache_core=true
 compiler.warning_level=none
+
+compiler.cpp.extra_flags=-Os
+
 console=true
 console.auto_clear=true
 console.error.file=stderr.txt
@@ -92,3 +95,5 @@ update.last=1601420538715
 upload.using=bootloader
 upload.verbose=false
 upload.verify=true
+
+

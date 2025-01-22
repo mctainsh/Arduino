@@ -80,7 +80,7 @@ struct Pixel_Strand : Service::LightBulb
 			if (_effect.updated())
 				Serial.printf("Effect changed to: %s\n", pEffect->name);
 		}
-		return (true);
+		return true;
 	}
 
 	/////////////////////////////////////////////////////////////////////////////////////////////

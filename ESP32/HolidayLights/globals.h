@@ -5,7 +5,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 // Setting up lights
 //
-// 1) Set pixel Fromat
+// 1) Set pixel Format
 //		Select WS2812 (3 pin,  5V) GRB
 // 		Select WS2815 (4 pin, 12V) RGB
 //
@@ -25,7 +25,7 @@
 //#define NEO_BRG ((1 << 6) | (1 << 4) | (2 << 2) | (0)) ///< Transmit as B,R,G
 //#define NEO_BGR ((2 << 6) | (2 << 4) | (1 << 2) | (0)) ///< Transmit as B,G,R
 
-#define MY_VERSION "2.38"
+#define MY_VERSION "2.39"
 // Maximum power is 255. 50 is a good value
 //  88 = 2.9A on 308 LEDs
 // 188 = 3.8A on 308 LEDssmart
@@ -87,9 +87,12 @@ const char* MANUFACTURER = "Secure Hub";
 //const char* SERIAL_NO   = "JRM.008.20";			// Farm Master bedroom
 //const char* BRIDGE_NAME = "Farm Room Lights";	
 //const char* PARING_CODE = "88880020";
-const char* SERIAL_NO   = "JRM.008.21";			// Claudia's TV
-const char* BRIDGE_NAME = "Claudias TV Lights";	
-const char* PARING_CODE = "88880021";
+//const char* SERIAL_NO   = "JRM.008.21";			// Claudia's TV
+//const char* BRIDGE_NAME = "Claudias TV Lights";	
+//const char* PARING_CODE = "88880021";
+const char* SERIAL_NO   = "JRM.008.23";			// Farm Curtain TV
+const char* BRIDGE_NAME = "Farm Master Curtain 2";	
+const char* PARING_CODE = "88880023";
 
 #define PIXEL_COUNT 300
 // Claudia TV = 135		

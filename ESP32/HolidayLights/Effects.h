@@ -196,10 +196,11 @@ struct Twinkle_4 : SpecialEffect
 /////////////////////////////////////////////////////////////////////////////////////////////
 struct Rainbow_5 : SpecialEffect
 {
-	int _startHue = 0;
-
 	Rainbow_5()
-	  : SpecialEffect{ "Rainbow" } {}
+	  : SpecialEffect{ "Rainbow" } 
+	  {
+		init( 100,100,100);
+	  }
 
 	void init(float h, float s, float v) override
 	{
@@ -208,10 +209,10 @@ struct Rainbow_5 : SpecialEffect
 
 	uint32_t update() override
 	{
+		//TurnOnStrip(true);
+		int startHue = millis()/15;
 		for (int i = 0; i < PIXEL_COUNT; i++)
-			g_colors[i].HSV(_startHue + i, 100, _v);
-		_startHue += 1;	 // Slow progressions
-		//_startHue += (_s / 20 );		// Progression based on saturation
+			g_colors[i].HSV(startHue + i, 100, _v);
 		g_pixel.set(g_colors, PIXEL_COUNT);
 		return (1);
 	}
