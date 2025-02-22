@@ -1,3 +1,4 @@
+#include "assert.h"
 #pragma once
 
 #include "esp32-hal.h"
@@ -8,11 +9,11 @@
 // Dimable and colour changing
 struct DEV_Base : Service::LightBulb
 {
-	SpanCharacteristic *power;	// reference to the On Characteristic
+	SpanCharacteristic *POWER;	// reference to the On Characteristic
 	SpanCharacteristic *V;		// reference to the Brightness Characteristic
 
 	bool _powerOn = false;
-	float _powerLevel = 0;
+	float _powerLevel = 50;
 
 	unsigned long _timeOfPowerChange;
 	bool _changeComplete = true;
@@ -20,9 +21,11 @@ struct DEV_Base : Service::LightBulb
 	DEV_Base()
 	  : Service::LightBulb()
 	{
-		power = new Characteristic::On();
-		V = new Characteristic::Brightness(100);  // instantiate the Brightness Characteristic with an initial value of 100%
-		V->setRange(5, 100, 1);					  // sets the range of the Brightness to be from a min of 5%, to a max of 100%, in steps of 1%
+	}
+
+	virtual void Show(bool startup = true)
+	{
+		assert(0);
 	}
 
 	bool PoweringOn()
@@ -30,9 +33,15 @@ struct DEV_Base : Service::LightBulb
 		return _powerOn && !_changeComplete;
 	}
 
-	void ResetPowerDown()
+	bool PoweringOff()
+	{
+		return !_powerOn && !_changeComplete;
+	}
+	void PowerDown()
 	{
 		_changeComplete = true;
+		_powerOn = false;
+		POWER->setVal(false);
 	}
 
 	/////////////////////////////////////////////////////////////////////////////
@@ -43,11 +52,7 @@ struct DEV_Base : Service::LightBulb
 		if (_changeComplete)
 			return;
 
-		TurnOnStrip(true);
-
 		unsigned long age = millis() - _timeOfPowerChange;
-
-		const int MAX_BRIGHTNESS = 80;
 
 		// Apply the new level value
 		float brightness;
@@ -64,15 +69,19 @@ struct DEV_Base : Service::LightBulb
 			_changeComplete = true;
 			TurnOnStrip(_powerOn);
 		}
+
+		Show();
 	}
 
 	////////////////////////////////////////////////////////////////////////
 	// Read the base setting
 	void UpdateBase()
 	{
-		if (power->updated())
+		_powerOn = POWER->getVal();
+		_powerLevel = V->getVal();
+		if (POWER->updated())
 		{
-			_powerOn = power->getNewVal();
+			_powerOn = POWER->getNewVal();
 			_timeOfPowerChange = millis();
 			_changeComplete = false;
 		}

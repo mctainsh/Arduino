@@ -10,7 +10,7 @@
 
 #include <Adafruit_NeoPixel.h>
 #include "HomeSpan.h"
-#include "DEV_DimmableLED.h"
+#include "DEV_RainbowStrip.h"
 #include "DEV_RgbLED.h"
 #include "Globals.h"
 
@@ -18,52 +18,75 @@ Adafruit_NeoPixel g_strip(PIXEL_COUNT, NEOPIXEL_RGBW_PIN, NEO_GRB + NEO_KHZ800);
 
 boolean _powerOn = false;
 
-DEV_DimmableLED* _pRainbowStrip = NULL;
+DEV_RainbowStrip* _pRainbowStrip = NULL;
 DEV_RgbLED* _pRgbStrip = NULL;
 
+///////////////////////////////////////////////////////////////////////////////////////
+// Turn on a single pixel
 void Set(int pin, int r, int g, int b)
 {
 	g_strip.setPixelColor(pin, g_strip.Color(r, g, b));
 	g_strip.show();
 }
 
+///////////////////////////////////////////////////////////////////////////////////////
+// Make a number from 0 to 255 that pulses based on time
+int MakePulseColour(int offset = 0)
+{
+	int c = ((millis() / 5) + offset) % 512;
+	return (c > 256) ? 512 - c : c;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Startup
 void setup()
 {
 	Serial.begin(115200);
 
 	TurnOnStrip(true);
-	g_strip.begin();			 // INITIALIZE NeoPixel strip object (REQUIRED)
-	g_strip.show();				 // Turn OFF all pixels ASAP
-	g_strip.setBrightness(100);	 // Set BRIGHTNESS to about 1/5 (max = 255)
+	g_strip.begin();						// INITIALIZE NeoPixel strip object (REQUIRED)
+	g_strip.show();							// Turn OFF all pixels ASAP
+	g_strip.setBrightness(MAX_BRIGHTNESS);	// Set BRIGHTNESS to about 1/5 (max = 255)
 
 	Set(1, 255, 0, 0);
+	delay(250);
 
+	//	pinMode(STATUS_LED_PIN, OUTPUT);
+
+	// Setup homespan defaults
+	homeSpan.setStatusPin(STATUS_LED_PIN);		 // 9 Is blue, 10 is red
+	homeSpan.setStatusAutoOff(30);				 // Turn off status LED after 30 seconds
+	homeSpan.setControlPin(CONTROL_SWITCH_PIN);	 // 18 is nearest GND, 9 is PRG Button
+
+	// Start the bridge
 	homeSpan.begin(Category::Bridges, BRIDGE_NAME);
 	homeSpan.setWifiCredentials("RhinoNBN", "");
-
-	homeSpan.setStatusPin(STATUS_LED_PIN);	// 9 Is blue, 10 is red
-	homeSpan.setStatusAutoOff(30);			// Turn off status LED after 30 seconds
-	//homeSpan.setControlPin(CONTROL_SWITCH_PIN);	 // 18 is nearest GND, 9 is PRG Button
 
 	// Setup the parting code (Should be unique on the network)
 	//homeSpan.setPairingCode(PARING_CODE);
 
 	Set(2, 0, 255, 0);
+	delay(250);
 
 	new SpanAccessory();
 	new Service::AccessoryInformation();
 	new Characteristic::Identify();
+	new Characteristic::Manufacturer(MANUFACTURER);
+	new Characteristic::FirmwareRevision(MY_VERSION);
+	new Characteristic::Model("HomeSpanV6");
 
 	Set(3, 0, 0, 255);
+	delay(250);
 
 	// Create a Dimmable Raunbow strip
 	new SpanAccessory();
 	new Service::AccessoryInformation();
 	new Characteristic::Identify();
 	new Characteristic::Name("Rainbow LED");
-	_pRainbowStrip = new DEV_DimmableLED();
+	_pRainbowStrip = new DEV_RainbowStrip();
 
 	Set(4, 255, 255, 0);
+	delay(250);
 
 	// Create simple colour strip
 	new SpanAccessory();
@@ -74,29 +97,65 @@ void setup()
 
 	Set(5, 255, 0, 255);
 }
-//////////////////////////////////////
 
+/////////////////////////////////////////////////////////////////////////////////////////////
+// Main loop
 void loop()
 {
 	homeSpan.poll();
 
+	// Skip if we are not ready
+	if (_pRainbowStrip == NULL || _pRgbStrip == NULL)
+		return;
 
 	// If one is powering on and one off
 	// .. Cancel the power off and accept power ON
+	if (_pRainbowStrip->PoweringOn() && _pRgbStrip->PoweringOn())
+		_pRgbStrip->PowerDown();
 
-	// Chase the rainbow
-	if (_pRainbowStrip != NULL && _pRainbowStrip->_powerOn)
+	if (_pRainbowStrip->PoweringOn())
+		_pRgbStrip->PowerDown();
+
+	if (_pRgbStrip->PoweringOn())
+		_pRainbowStrip->PowerDown();
+
+
+	//if( _pRainbowStrip->PoweringOn() && _pRgbStrip->PoweringOn())
+	//	_pRgbStrip-PowerDown();
+
+
+	// Set the power level
+	_pRainbowStrip->SetPowerlevel();
+	_pRgbStrip->SetPowerlevel();
+
+	if (_pRainbowStrip->_powerOn || _pRgbStrip->_powerOn)
+		TurnOnStrip(true);
+
+	// Turn off status lights at startup
+	if (!_pRainbowStrip->_powerOn && !_pRgbStrip->_powerOn && millis() > 5000)
 	{
-		int startHue = millis() * 5;
-		g_strip.rainbow(startHue);
-		g_strip.show();
+		_pRainbowStrip->PowerDown();
+		_pRgbStrip->PowerDown();
+		TurnOnStrip(false);
 	}
 
+	// Draw the strip
+	if (_pRainbowStrip->_powerOn)
+	{
+		_pRainbowStrip->Show();
+	}
+	else if (_pRgbStrip->_powerOn)
+	{
+		_pRgbStrip->Show(false);
+	}
+
+
 	// If stuff is still pending blink
-	if (millis() % 500 > 250)
-		Set(0, 255, 0, 255);
-	else
-		Set(0, 0, 0, 255);
+	//Set(0, MakePulseColour(), 0, 0);
+
+
+	//Set(1, _pRainbowStrip->_powerOn ? 255 : 0, 0, 0);
+	//Set(2, _pRgbStrip->_powerOn ? 255 : 0, 0, 0);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////

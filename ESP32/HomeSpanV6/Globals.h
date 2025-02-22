@@ -1,8 +1,13 @@
 #pragma once
 
+#define MY_VERSION "6.58"
+
 // Duration of the fade
 #define POWER_FADE_MS 3000.0
 
+#define PIXEL_COUNT 300
+
+#define MAX_BRIGHTNESS 255
 
 #define NEO_RGB ((0 << 6) | (0 << 4) | (1 << 2) | (2)) ///< Transmit as R,G,B
 //#define NEO_RBG ((0 << 6) | (0 << 4) | (2 << 2) | (1)) ///< Transmit as R,B,G
@@ -11,7 +16,6 @@
 //#define NEO_BRG ((1 << 6) | (1 << 4) | (2 << 2) | (0)) ///< Transmit as B,R,G
 //#define NEO_BGR ((2 << 6) | (2 << 4) | (1 << 2) | (0)) ///< Transmit as B,G,R
 
-#define MY_VERSION "3.48"
 // Maximum power is 255. 50 is a good value
 //  88 = 2.9A on 308 LEDs
 // 188 = 3.8A on 308 LEDssmart
@@ -83,7 +87,5 @@ const char* SERIAL_NO   = "JRM.008.25";			// Master bedroom curtain
 const char* BRIDGE_NAME = "Master Curtain 1";	
 const char* PARING_CODE = "46637726 ";
 
-
-#define PIXEL_COUNT 300
 extern Adafruit_NeoPixel g_strip;
 extern void TurnOnStrip(bool on);
