@@ -1,19 +1,25 @@
 /*********************************************************************************
    Setup notes
- 	1) Increase Partition size with Tools-> Partition size->Minimal Spifs
-	2) Clear memory. 
+ 	1) Increase Partition size with Tools -> Partition size -> Minimal Spiffs (Or Huge APP)
+	2) Clear memory (ONLY IF NEW). Tools -> Erase All Flast before upload -> Enable 
+	3) Set Library versions
+		HomeSpan 2.1.0
+		Adafruit_NeoPixel 1.12.4
  ********************************************************************************/
 
 
 #include <Adafruit_NeoPixel.h>
 #include "HomeSpan.h"
-#include "DEV_LED.h"
+#include "DEV_DimmableLED.h"
+#include "DEV_RgbLED.h"
 #include "Globals.h"
 
 Adafruit_NeoPixel g_strip(PIXEL_COUNT, NEOPIXEL_RGBW_PIN, NEO_GRB + NEO_KHZ800);
 
 boolean _powerOn = false;
-bool g_rainbowOn = false;
+
+DEV_DimmableLED* _pRainbowStrip = NULL;
+DEV_RgbLED* _pRgbStrip = NULL;
 
 void Set(int pin, int r, int g, int b)
 {
@@ -50,20 +56,21 @@ void setup()
 
 	Set(3, 0, 0, 255);
 
-	// Dimable rainbow
+	// Create a Dimmable Raunbow strip
 	new SpanAccessory();
 	new Service::AccessoryInformation();
 	new Characteristic::Identify();
 	new Characteristic::Name("Rainbow LED");
-	new DEV_DimmableLED(3);	 // Create a Dimmable (PWM-driven) LED using attached to pin 17
+	_pRainbowStrip = new DEV_DimmableLED();
 
 	Set(4, 255, 255, 0);
 
+	// Create simple colour strip
 	new SpanAccessory();
 	new Service::AccessoryInformation();
 	new Characteristic::Identify();
 	new Characteristic::Name("Light strip");
-	new DEV_RgbLED(10, 11, 12);	 // Create an RGB LED attached to pins 32,22,23 (for R, G, and B LED anodes)
+	_pRgbStrip = new DEV_RgbLED();
 
 	Set(5, 255, 0, 255);
 }
@@ -73,25 +80,20 @@ void loop()
 {
 	homeSpan.poll();
 
-	if (g_rainbowOn)
+
+	// If one is powering on and one off
+	// .. Cancel the power off and accept power ON
+
+	// Chase the rainbow
+	if (_pRainbowStrip != NULL && _pRainbowStrip->_powerOn)
 	{
-
-		//				_firstPixelHue ++;
-		//		_firstPixelHue = millis() / 15;
-		//	g_strip.rainbow(_firstPixelHue);
-		//	g_strip.show();
-
-		int startHue = millis()*5;
+		int startHue = millis() * 5;
 		g_strip.rainbow(startHue);
-
-		//	g_strip.show();
-		//	for (int i = 0; i < PIXEL_COUNT; i++)
-		//g_colors[i].HSV(startHue + i, 100, _v);
-		//		g_strip.setPixelColor(i, g_strip.ColorHSV(startHue + i, 100, 100));
 		g_strip.show();
 	}
 
-	if (millis() % 1000 > 500)
+	// If stuff is still pending blink
+	if (millis() % 500 > 250)
 		Set(0, 255, 0, 255);
 	else
 		Set(0, 0, 0, 255);

@@ -1,7 +1,8 @@
 #pragma once
 
-void TurnOnStrip(bool on);
-extern Adafruit_NeoPixel g_strip;
+// Duration of the fade
+#define POWER_FADE_MS 3000.0
+
 
 #define NEO_RGB ((0 << 6) | (0 << 4) | (1 << 2) | (2)) ///< Transmit as R,G,B
 //#define NEO_RBG ((0 << 6) | (0 << 4) | (2 << 2) | (1)) ///< Transmit as R,B,G
@@ -84,3 +85,5 @@ const char* PARING_CODE = "46637726 ";
 
 
 #define PIXEL_COUNT 300
+extern Adafruit_NeoPixel g_strip;
+extern void TurnOnStrip(bool on);
