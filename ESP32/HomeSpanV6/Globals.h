@@ -1,6 +1,6 @@
 #pragma once
 
-#define MY_VERSION "6.58"
+#define MY_VERSION "6.68"
 
 // Duration of the fade
 #define POWER_FADE_MS 3000.0
@@ -8,6 +8,9 @@
 #define PIXEL_COUNT 300
 
 #define MAX_BRIGHTNESS 255
+
+// NOTE : W2815 (12V uinsg need to swap red and green in DEV_RebLed.h)
+//#define IS_W2815_12V false
 
 #define NEO_RGB ((0 << 6) | (0 << 4) | (1 << 2) | (2)) ///< Transmit as R,G,B
 //#define NEO_RBG ((0 << 6) | (0 << 4) | (2 << 2) | (1)) ///< Transmit as R,B,G
@@ -35,7 +38,7 @@
 // Red LED Pin to show status  9 Is blue, 10 is red
 // Version 1 = 10
 // Version 2 = 10
-// Version 3 = 10
+// Version 3,5 = 10
 // LOLIN S2 Mini = 15
 #define STATUS_LED_PIN 10
 
@@ -51,8 +54,7 @@ const char* MANUFACTURER = "Secure Hub";
 // Make the following unique for each device (Bridge and paring setup code)
 // Default Paring Code "46637726"
 //const char* BRIDGE_NAME = "SH Bridge 01";		// Home bedroom LEDS = 108
-//const char* PARING_CODE = "88880001";
-//#define PIXEL_COUNT 108		
+//const char* PARING_CODE = "88880001";	
 //const char* BRIDGE_NAME = "SH Bridge 02";		// Flat floor bed 300 LEDS=300
 //const char* PARING_CODE = "88880002";
 //const char* BRIDGE_NAME = "SH Bridge 03";
@@ -77,15 +79,23 @@ const char* MANUFACTURER = "Secure Hub";
 //const char* SERIAL_NO   = "JRM.008.20";			// Farm Master bedroom
 //const char* BRIDGE_NAME = "Farm Room Lights";	
 //const char* PARING_CODE = "88880020";
+
 //const char* SERIAL_NO   = "JRM.008.21";			// Claudia's TV
 //const char* BRIDGE_NAME = "Claudias TV Lights";	
 //const char* PARING_CODE = "88880021";
+
 //const char* SERIAL_NO   = "JRM.008.23";			// Farm Curtain TV
 //const char* BRIDGE_NAME = "Farm Master Curtain 2";	
 //const char* PARING_CODE = "88880023";
+
 const char* SERIAL_NO   = "JRM.008.25";			// Master bedroom curtain
 const char* BRIDGE_NAME = "Master Curtain 1";	
 const char* PARING_CODE = "46637726 ";
+
+//const char* SERIAL_NO   = "JRM.008.26";			// Long 12V strip
+//const char* BRIDGE_NAME = "Long 12V";	
+//const char* PARING_CODE = "88880026";
+//#define IS_W2815_12V true
 
 extern Adafruit_NeoPixel g_strip;
 extern void TurnOnStrip(bool on);

@@ -37,13 +37,15 @@ struct DEV_RgbLED : DEV_Base
 
 		float r, g, b;
 		LedPin::HSVtoRGB(h, s / 100.0, 1, &r, &g, &b);	// since HomeKit provides S and V in percent, scale down by 100
-		//LedPin::HSVtoRGB(h, s / 100.0, _powerLevel / 100.0, &r, &g, &b);  // since HomeKit provides S and V in percent, scale down by 100
-		//LedPin::HSVtoRGB(h, s / 100.0, 1, &r, &g, &b);	// since HomeKit provides S and V in percent, scale down by 100
+//LedPin::HSVtoRGB(h, s / 100.0, _powerLevel / 100.0, &r, &g, &b);  // since HomeKit provides S and V in percent, scale down by 100
+//LedPin::HSVtoRGB(h, s / 100.0, 1, &r, &g, &b);	// since HomeKit provides S and V in percent, scale down by 100
 
-		//		sprintf(cBuf, "RGB=(%d,%d,%d)\n", R, G, B);
-		//		LOG1(cBuf);
-
+// Swap RED and Green for W2815 (12V)
+#ifdef IS_W2815_12V
+		Colour = g_strip.Color(g * 255, r * 255, b * 255);
+#else
 		Colour = g_strip.Color(r * 255, g * 255, b * 255);
+#endif
 
 		_refreshStripTime = millis() - REFRESH_MS;
 	}

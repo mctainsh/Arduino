@@ -46,7 +46,7 @@ void setup()
 	TurnOnStrip(true);
 	g_strip.begin();						// INITIALIZE NeoPixel strip object (REQUIRED)
 	g_strip.show();							// Turn OFF all pixels ASAP
-	g_strip.setBrightness(MAX_BRIGHTNESS);	// Set BRIGHTNESS to about 1/5 (max = 255)
+	g_strip.setBrightness(25);	// Set BRIGHTNESS to about 1/5 (max = 255)
 
 	Set(1, 255, 0, 0);
 	delay(250);
@@ -61,9 +61,10 @@ void setup()
 	// Start the bridge
 	homeSpan.begin(Category::Bridges, BRIDGE_NAME);
 	homeSpan.setWifiCredentials("RhinoNBN", "");
+	//homeSpan.setWifiCredentials("TPPW4G_9332", "");
 
 	// Setup the parting code (Should be unique on the network)
-	//homeSpan.setPairingCode(PARING_CODE);
+	homeSpan.setPairingCode(PARING_CODE);
 
 	Set(2, 0, 255, 0);
 	delay(250);
@@ -119,7 +120,7 @@ void loop()
 	if (_pRgbStrip->PoweringOn())
 		_pRainbowStrip->PowerDown();
 
-
+	delay(50);
 	//if( _pRainbowStrip->PoweringOn() && _pRgbStrip->PoweringOn())
 	//	_pRgbStrip-PowerDown();
 
