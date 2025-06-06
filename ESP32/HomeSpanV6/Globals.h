@@ -29,7 +29,7 @@
 // Version 2 = 1
 // Version 3 = 6
 // LOLIN S2 Mini = 18
-#define NEOPIXEL_RGBW_PIN    6	
+#define NEOPIXEL_RGBW_PIN    2	
 
 // Which input switchs the power onto the NeoPixels power?
 // Version 3 = 5
@@ -53,29 +53,39 @@ const char* MANUFACTURER = "Secure Hub";
 
 // Make the following unique for each device (Bridge and paring setup code)
 // Default Paring Code "46637726"
-//const char* BRIDGE_NAME = "SH Bridge 01";		// Home bedroom LEDS = 108
-//const char* PARING_CODE = "88880001";	
+const char* SERIAL_NO	= "JRM.008.2";		// Home bedroom LEDS = 108
+const char* BRIDGE_NAME = "SH Bridge 01";		
+const char* PARING_CODE = "88880001";	
+#define PIXEL_COUNT 108
+
 //const char* BRIDGE_NAME = "SH Bridge 02";		// Flat floor bed 300 LEDS=300
 //const char* PARING_CODE = "88880002";
 //const char* BRIDGE_NAME = "SH Bridge 03";
 //const char* PARING_CODE = "88880003";
+
 //const char* BRIDGE_NAME = "SH Lego 01";		// Claudia's Lego #1
 //const char* PARING_CODE = "88880010";
+
 //const char* BRIDGE_NAME = "Stranger Things";	// Claudia's Lego #2 Stranger times
 //const char* PARING_CODE = "88880011";
+
 //const char* BRIDGE_NAME = "Farm Strip";		// Farm bed head light
 //const char* PARING_CODE = "88880012";
+
 //const char* BRIDGE_NAME = "Lego Workshop";	// Lego workshop
 //const char* PARING_CODE = "88880015";
+
 //const char* SERIAL_NO	  = "JRM.008.3";		// Chimney
 //const char* BRIDGE_NAME = "Chimney";			
 //const char* PARING_CODE = "88880016";
 //const char* SERIAL_NO   = "JRM.008.17";
 //const char* BRIDGE_NAME = "KitchenCabinet";	// Kitchen Cabinet
 //const char* PARING_CODE = "88880017";
+
 //const char* SERIAL_NO   = "JRM.008.19";		// Master Bedroom Top Lights
 //const char* BRIDGE_NAME = "Christmas Lights";	
 //const char* PARING_CODE = "88880019";
+
 //const char* SERIAL_NO   = "JRM.008.20";			// Farm Master bedroom
 //const char* BRIDGE_NAME = "Farm Room Lights";	
 //const char* PARING_CODE = "88880020";
@@ -88,9 +98,9 @@ const char* MANUFACTURER = "Secure Hub";
 //const char* BRIDGE_NAME = "Farm Master Curtain 2";	
 //const char* PARING_CODE = "88880023";
 
-const char* SERIAL_NO   = "JRM.008.25";			// Master bedroom curtain
-const char* BRIDGE_NAME = "Master Curtain 1";	
-const char* PARING_CODE = "46637726 ";
+//const char* SERIAL_NO   = "JRM.008.25";			// Master bedroom curtain
+//const char* BRIDGE_NAME = "Master Curtain 1";	
+//const char* PARING_CODE = "46637726 ";
 
 //const char* SERIAL_NO   = "JRM.008.26";			// Long 12V strip
 //const char* BRIDGE_NAME = "Long 12V";	

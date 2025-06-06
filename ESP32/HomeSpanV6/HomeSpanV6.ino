@@ -5,6 +5,11 @@
 	3) Set Library versions
 		HomeSpan 2.1.0
 		Adafruit_NeoPixel 1.12.4
+
+	TODO Edit HomeSpan.cpp
+		#include <mutex>   // JRM Fix IDE change error
+		#include <algorithm>
+
  ********************************************************************************/
 
 
