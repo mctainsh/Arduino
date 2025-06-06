@@ -1,7 +1,7 @@
 /*********************************************************************************
  *  MIT License
  *  
- *  Copyright (c) 2020-2023 Gregg E. Berman
+ *  Copyright (c) 2020-2025 Gregg E. Berman
  *  
  *  https://github.com/HomeSpan/HomeSpan
  *  
@@ -52,6 +52,7 @@ typedef enum {
 // HAP Error Codes (HAP Table 5-5)
 
 typedef enum {
+  tagError_None=0x00,
   tagError_Unknown=0x01,
   tagError_Authentication=0x02,
   tagError_Backoff=0x03,

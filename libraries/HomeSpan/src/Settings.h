@@ -1,7 +1,7 @@
 /*********************************************************************************
  *  MIT License
  *  
- *  Copyright (c) 2020-2023 Gregg E. Berman
+ *  Copyright (c) 2020-2025 Gregg E. Berman
  *  
  *  https://github.com/HomeSpan/HomeSpan
  *  
@@ -24,40 +24,8 @@
  *  SOFTWARE.
  *  
  ********************************************************************************/
- 
-// USER-DEFINED SETTINGS AND REFERENCE ENUMERATION CLASSES
-
-#include <core_version.h>
 
 #pragma once
-
-//////////////////////////////////////////////////////
-//              HomeSpan Version                    //
-
-#define     HS_MAJOR  1
-#define     HS_MINOR  8
-#define     HS_PATCH  0
-
-#define     STRINGIFY(x) _STR(x)
-#define     _STR(x) #x
-
-#define     HOMESPAN_VERSION    STRINGIFY(HS_MAJOR) "." STRINGIFY(HS_MINOR) "." STRINGIFY(HS_PATCH)
-
-#define     VERSION(major,minor,patch) major*10000+minor*100+patch
-
-#ifndef REQUIRED
-  #define REQUIRED 0
-#endif
-
-#if (REQUIRED>VERSION(HS_MAJOR,HS_MINOR,HS_PATCH))
-  #error THIS SKETCH REQUIRES A LATER VERSION OF THE HOMESPAN LIBRARY
-#endif
-
-#define     ARDUINO_ESP_VERSION   STRINGIFY(ARDUINO_ESP32_GIT_DESC)
-
-#if ESP_ARDUINO_VERSION_MAJOR<2
-  #error HOMESPAN REQUIRES VERSION 2 OF THE ARDUINO ESP32 LIBRARY
-#endif
 
 //////////////////////////////////////////////////////
 //                DEFAULT SETTINGS                  //  
@@ -84,6 +52,10 @@
 
 #define     DEFAULT_WEBLOG_URL        "status"            // change with optional fourth argument in homeSpan.enableWebLog()
 
+#define     DEFAULT_LOW_MEM_THRESHOLD     80000           // default low watermark memory (for internal RAM) threshold that triggers warning
+
+#define     DEFAULT_REBOOT_CALLBACK_TIME  5000            // default time (in milliseconds) to check for reboot callback
+
 /////////////////////////////////////////////////////
 //              OTA PARTITION INFO                 //
 
@@ -97,8 +69,9 @@
 #define     LED_ALERT             100                 // rapid flashing
 #define     LED_WIFI_CONNECTING   2000                // slow flashing
 #define     LED_AP_STARTED        100,0.5,2,300       // rapid double-blink
-#define     LED_AP_CONNECTED      300,0.5,2,400       // medium double-blink     
+#define     LED_AP_CONNECTED      300,0.5,2,400       // medium double-blink    
 #define     LED_OTA_STARTED       300,0.5,3,400       // medium triple-blink
+#define     LED_WIFI_SCANNING     300,0.8,3,400       // medium inverted triple-blink
 
 /////////////////////////////////////////////////////
 //      Message Log Level Control Macros           //

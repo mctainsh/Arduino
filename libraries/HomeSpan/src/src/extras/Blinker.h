@@ -1,7 +1,7 @@
 /*********************************************************************************
  *  MIT License
  *  
- *  Copyright (c) 2020-2023 Gregg E. Berman
+ *  Copyright (c) 2020-2024 Gregg E. Berman
  *  
  *  https://github.com/HomeSpan/HomeSpan
  *  
@@ -28,7 +28,6 @@
 #pragma once
 
 #include <Arduino.h>
-#include <driver/timer.h>
 
 [[maybe_unused]] static const char* BLINKER_TAG = "Blinker";
 

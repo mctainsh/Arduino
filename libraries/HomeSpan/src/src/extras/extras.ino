@@ -1,7 +1,7 @@
 /*********************************************************************************
  *  MIT License
  *  
- *  Copyright (c) 2020-2023 Gregg E. Berman
+ *  Copyright (c) 2020-2024 Gregg E. Berman
  *  
  *  https://github.com/HomeSpan/HomeSpan
  *  
@@ -24,50 +24,116 @@
  *  SOFTWARE.
  *  
  ********************************************************************************/
+
+#include "Pixel.h"
+#include "RFControl.h"
+
+#define PIXEL_PIN   26
+#define LED_PIN     15
+
+#define NCYCLES     4
+#define COUNT       5
+#define ONTIME      5000
+#define OFFTIME     5000
+
+void setup(){     
  
-// This is a placeholder .ino file that allows you to easily edit the contents of this files using the Arduino IDE,
-// as well as compile and test from this point.  This file is ignored when the library is included in other sketches.
-
-#include "Stepper_TB6612.h"   // include the driver for a TB6612 chip
-#include "Stepper_A3967.h"
-
-StepperControl *bigMotor;
-StepperControl *smallMotor;
-
-#define BIG_MOTOR_POSITION    1600
-#define SMALL_MOTOR_POSITION  2064
-
-///////////////////
-
-void setup() {
-
-  Serial.begin(115200);
+  Serial.begin(115200);           // start the Serial interface
   delay(1000);
-  Serial.printf("\nHomeSpan Stepper Control\n\n");
 
-  bigMotor=(new Stepper_TB6612(23,32,22,14,33,27))->setStepType(StepperControl::HALF_STEP)->setAccel(10,20);
-  smallMotor=new Stepper_A3967(18,21,5,4,19);
+  Serial.print("\n\nHomeSpan Pixel+RF Example\n\n");
 
-//  smallMotor->setStepType(StepperControl::EIGHTH_STEP);
+  Pixel px(PIXEL_PIN,"G-B");
+  px.setOnColor(Pixel::RGB(0,255,0))->setTemperatures(2000,6000)->setTiming(0.32, 0.88, 0.64, 0.56, 80.0);
+  RFControl rf(LED_PIN);
 
-//  bigMotor->setStepType(StepperControl::HALF_STEP);
-//  bigMotor->setAccel(10,20);
+  Pixel::Color q;
+  
+  q.CCT(4000,25,3000,6500);  
+  Serial.printf("%d %d %d %d %d\n",q.col[0],q.col[1],q.col[2],q.col[3],q.col[4]);
+  q.CCT(4000,100,3000,6500);  
+  Serial.printf("%d %d %d %d %d\n",q.col[0],q.col[1],q.col[2],q.col[3],q.col[4]);
+  q.CCT(3000,100,2000,7000);  
+  Serial.printf("%d %d %d %d %d\n",q.col[0],q.col[1],q.col[2],q.col[3],q.col[4]);
+  q.CCT(4500,100,2000,7000);  
+  Serial.printf("%d %d %d %d %d\n",q.col[0],q.col[1],q.col[2],q.col[3],q.col[4]);
+  q.CCT(6000,10,2000,7000);  
+  Serial.printf("%d %d %d %d %d\n",q.col[0],q.col[1],q.col[2],q.col[3],q.col[4]);
+  q=px.CCT(6000,10,2000,7000);  
+  Serial.printf("%d %d %d %d %d\n",q.col[0],q.col[1],q.col[2],q.col[3],q.col[4]);
+  q=px.CCT(6000,10);  
+  Serial.printf("%d %d %d %d %d\n",q.col[0],q.col[1],q.col[2],q.col[3],q.col[4]);
+  q.CCT(7000,50,2000,7000);  
+  Serial.printf("%d %d %d %d %d\n",q.col[0],q.col[1],q.col[2],q.col[3],q.col[4]);
+  q=Pixel::CCT(8000,25,2000,7000);  
+  Serial.printf("%d %d %d %d %d\n",q.col[0],q.col[1],q.col[2],q.col[3],q.col[4]);
+  
+  Pixel::Color c[8]={
+    Pixel::RGB(255,0,0),
+    Pixel::RGB(255,0,0),
+    Pixel::RGB(255,0,0),
+    px.RGB(0,255,0),
+    px.RGB(0,255,0),
+    Pixel::RGB(0,0,255),
+    Pixel::RGB(0,0,255),
+    Pixel::RGB(0,0,255)
+  };
+  
+  Pixel::Color d[8]={
+    Pixel::HSV(0,100,10),
+    Pixel::HSV(0,100,10),
+    Pixel::HSV(0,100,10),
+    Pixel::HSV(120,100,10),
+    Pixel::HSV(120,100,10),
+    Pixel::HSV(240,100,10),
+    Pixel::HSV(240,100,10),
+    Pixel::HSV(240,100,10)
+  };
+
+  Serial.printf("Starting cycles of RGB pattern...\n");
+
+  for(int i=0;i<NCYCLES;i++){
+      px.set(c,8);
+      delay(1000);        
+      px.set(d,8);
+      delay(1000);
+  }
+
+  px.set(Pixel::RGB(0,0,0,255,0),100);
+  delay(2000);
+  px.set(Pixel::RGB(0,0,0,0,255),100);
+  delay(2000);
+  px.set(Pixel::RGB(0,0,0,0,0),100);
+  while(1);
+  
+  rf.clear();                    // clear the pulse train memory buffer
+
+  for(int i=0;i<COUNT;i++)
+    rf.add(ONTIME,OFFTIME);
+  rf.phase(OFFTIME,LOW);
+
+  long int x,y;
+  
+  Serial.printf("Starting cycles of pulses without carrier...\n");
+  x=millis();
+  rf.start(NCYCLES,100);
+  y=millis();
+  Serial.printf("Total time: %ld ms\n",y-x);
+
+  rf.enableCarrier(10,0.4);
+
+  Serial.printf("Starting cycles of pulses with 10 Hz carrier...\n");
+  x=millis();
+  rf.start(NCYCLES,100);
+  y=millis();
+  Serial.printf("Total time: %ld ms\n",y-x);
+
+  Serial.printf("Turning off RGB LEDs.\n");
+
+  px.set(Pixel::RGB(0,0,0),8);
+
+  Serial.print("Done!\n");  
 }
 
-///////////////////
-
 void loop(){
-
-  if(smallMotor->position()==0)
-    smallMotor->moveTo(SMALL_MOTOR_POSITION,2);
-  else if(smallMotor->position()==SMALL_MOTOR_POSITION)
-    smallMotor->moveTo(0,2);
-
-  if(bigMotor->position()==0)
-    bigMotor->moveTo(BIG_MOTOR_POSITION,4);
-  else if(bigMotor->position()==BIG_MOTOR_POSITION)
-    bigMotor->moveTo(0,4);    
-
-  delay(1000);
-  Serial.printf("Small Motor: %d     Big Motor %d\n",smallMotor->stepsRemaining(),bigMotor->stepsRemaining());
 }

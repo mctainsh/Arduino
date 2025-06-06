@@ -1,7 +1,7 @@
 /*********************************************************************************
  *  MIT License
  *  
- *  Copyright (c) 2020-2023 Gregg E. Berman
+ *  Copyright (c) 2020-2024 Gregg E. Berman
  *  
  *  https://github.com/HomeSpan/HomeSpan
  *  
@@ -91,9 +91,10 @@ class LedPin : public LedC {
   private:
     int fadeState=NOT_FADING;
     static bool fadeCallback(const ledc_cb_param_t *param, void *arg);
+    static boolean fadeInitialized;
 
   public:
-    LedPin(uint8_t pin, float level=0, uint16_t freq=DEFAULT_PWM_FREQ, boolean invert=false);   // assigns pin to be output of one of 16 PWM channels initial level and frequency
+    LedPin(uint8_t pin, float level=0, uint16_t freq=DEFAULT_PWM_FREQ, boolean invert=false);   // assigns LED pin
     void set(float level);                                                                      // sets the PWM duty to level (0-100)
     int fade(float level, uint32_t fadeTime, int fadeType=ABSOLUTE);                            // sets the PWM duty to level (0-100) within fadeTime in milliseconds, returns success (0) or fail (1)
     int fadeStatus();                                                                           // returns fading state

@@ -1,7 +1,7 @@
 /*********************************************************************************
  *  MIT License
  *  
- *  Copyright (c) 2020-2022 Gregg E. Berman
+ *  Copyright (c) 2020-2025 Gregg E. Berman
  *  
  *  https://github.com/HomeSpan/HomeSpan
  *  
@@ -24,7 +24,9 @@
  *  SOFTWARE.
  *  
  ********************************************************************************/
-
+ 
 #pragma once
 
-#include "../src/extras/Stepper_TB6612.h"
+// Override of weakly-defined Arduino-ESP32 function to enable auto rollback
+
+extern "C" bool verifyRollbackLater() {return true;}

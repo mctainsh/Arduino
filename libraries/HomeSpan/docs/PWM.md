@@ -1,8 +1,6 @@
 # Pulse Width Modulation (PWM)
 
-The ESP32 has up to 16 PWM channels that can be used to drive a variety of devices.  HomeSpan includes an integrated PWM library with dedicated classes designed for controlling **Dimmable LEDs** as well as **Servo Motors**.  Both classes are provided in a standalone header file that is accessed by placing the following near the top of your sketch:
-
-`#include "extras/PwmPin.h"`
+The ESP32 has up to 16 PWM channels that can be used to drive a variety of devices.  HomeSpan includes an integrated PWM library with dedicated classes designed for controlling **Dimmable LEDs** as well as **Servo Motors**.
 
 ## *LedPin(uint8_t pin [,float level [,uint16_t frequency [,boolean invert]]])*
 
@@ -73,7 +71,8 @@ The *minMicros* parameter must be less than the *maxMicros* parameter, but setti
 
 * `void set(double position)`
 
-  * sets the position of the Servo Motor to *position* (in degrees).  In order to protect the Servo Motor, values of *position* less than *minDegrees* are automatically reset to *minDegrees*, and values greater than *maxDegrees* are automatically reset to *maxDegrees*.
+  * sets the position of the Servo Motor to *position* (in degrees).  In order to protect the Servo Motor, values of *position* less than *minDegrees* are automatically reset to *minDegrees*, and values greater than *maxDegrees* are automatically reset to *maxDegrees*
+  * if *position* is specified as *NAN* (i.e. the C++ "not-a-number" constant), the duty-cycle is set to zero, which effectively stops the pulse generation --- for most analog servos this means the motor can be freely rotated.  Calling `set()` once again with *position* equal to an actual number of degrees restarts the pulse train and sets the servo position accordingly
   
 * `int getPin()`
 

@@ -1,7 +1,7 @@
 /*********************************************************************************
  *  MIT License
  *  
- *  Copyright (c) 2020-2023 Gregg E. Berman
+ *  Copyright (c) 2020-2024 Gregg E. Berman
  *  
  *  https://github.com/HomeSpan/HomeSpan
  *  
@@ -44,10 +44,19 @@ LedC::LedC(uint8_t pin, uint16_t freq, boolean invert){
             timerList[nTimer][nMode]->speed_mode=(ledc_mode_t)nMode;
             timerList[nTimer][nMode]->timer_num=(ledc_timer_t)nTimer;
             timerList[nTimer][nMode]->freq_hz=freq;
+#if defined(SOC_LEDC_SUPPORT_APB_CLOCK)
             timerList[nTimer][nMode]->clk_cfg=LEDC_USE_APB_CLK;
+#elif defined(SOC_LEDC_SUPPORT_PLL_DIV_CLOCK)
+            timerList[nTimer][nMode]->clk_cfg=LEDC_USE_PLL_DIV_CLK;
+#endif
+
+#if ESP_IDF_VERSION > ESP_IDF_VERSION_VAL(5, 1, 5)
+            timerList[nTimer][nMode]->deconfigure=false;
+#endif
+            
             
             int res=LEDC_TIMER_BIT_MAX-1;                               // find the maximum possible resolution
-            while(getApbFrequency()/(freq*pow(2,res))<1)
+            while(80.0e6/(freq*pow(2,res))<1)
               res--;     
               
             timerList[nTimer][nMode]->duty_resolution=(ledc_timer_bit_t)res;
@@ -96,8 +105,11 @@ LedPin::LedPin(uint8_t pin, float level, uint16_t freq, boolean invert) : LedC(p
       timer->duty_resolution,
       channel->flags.output_invert?"(inverted)":""
       );
-            
-  ledc_fade_func_install(0);
+
+  if(!fadeInitialized){
+    ledc_fade_func_install(0);
+    fadeInitialized=true;
+  }
   ledc_cbs_t fadeCallbackList = {.fade_cb = fadeCallback};                          // for some reason, ledc_cb_register requires the function to be wrapped in a structure
   ledc_cb_register(channel->speed_mode,channel->channel,&fadeCallbackList,this);
 
@@ -251,16 +263,21 @@ void ServoPin::set(double degrees){
   if(!channel)
     return;
 
-  double usec=(degrees-minDegrees)*microsPerDegree+minMicros;
+  if(!isnan(degrees)){
+    double usec=(degrees-minDegrees)*microsPerDegree+minMicros;
+    
+    if(usec<minMicros)
+      usec=minMicros;
+    else if(usec>maxMicros)
+      usec=maxMicros;
   
-  if(usec<minMicros)
-    usec=minMicros;
-  else if(usec>maxMicros)
-    usec=maxMicros;
-
-  usec*=timer->freq_hz/1e6*(pow(2,(int)timer->duty_resolution)-1);
-
-  channel->duty=usec;  
+    usec*=timer->freq_hz/1e6*(pow(2,(int)timer->duty_resolution)-1);
+  
+    channel->duty=usec;
+  } else {
+    channel->duty=0;
+  }
+  
   ledc_channel_config(channel);
 }
 
@@ -268,3 +285,4 @@ void ServoPin::set(double degrees){
 
 ledc_channel_config_t *LedC::channelList[LEDC_CHANNEL_MAX][LEDC_SPEED_MODE_MAX]={};
 ledc_timer_config_t *LedC::timerList[LEDC_TIMER_MAX][LEDC_SPEED_MODE_MAX]={};
+boolean LedPin::fadeInitialized=false;

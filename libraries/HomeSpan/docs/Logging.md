@@ -53,12 +53,14 @@ To enable Web Logging (it's turned off by default), call the method `homeSpan.en
 * the total number of WEBLOG() messages to be stored - older messages are discarded in favor of newer ones once the limit you set is reached
 * the URL of an NTP time server - this is optional and only needed if you want to set the clock of the device at start-up
 * the time zone for the device - this is only needed if an NTP time server has been specified
-* the URL of the Web Log page - if unspecified, HomeSpan will serve the Web Log at a page named "status"
+* the URL of the Web Log page - if unspecified, HomeSpan will serve the Web Log at a page named "status".  If set to NULL, HomeSpan will process Web Log data but will *not* serve any Web Log pages to any HTTP requests.  However, Web Log data in the form of a finished HTML page can still be accessed by the user by calling `homeSpan.getWebLog()` as described further below
  
 Additional notes:
  
   * it is okay to include WEBLOG() messages in your sketch even if Web Logging is *not* enabled.  In such cases HomeSpan will not serve a Web Log page, but WEBLOG() messages will still be output to the Arduino Serial Monitor if the *Log Level* is set to 1 or greater
   * messages are **not** stored in NVS and are thus **not** saved between reboots
+  * calling the Web Log from your browser with an optional query string, *refresh=N*, will cause the Web Log to auto-refresh in your browser every *N* seconds.  It does this by adding an HTTP "Refresh" response header to the HTML it serves up to the browser.  For example *http<nolink>://homespan-4e8eb8504e59.local/myLog?refresh=10* refreshes the Web Log page in your browser every 10 seconds.  If *refresh* is set to less than 1, or if the query string is not well-formed, HomeSpan will not add a Refresh response header to the HTML and no refreshing occurs 
+  * HomeSpan is case-insensitive with regard to intepreting Web Log requests from the browser.  For example *http<nolink>://homespan-4e8eb8504e59.local/MYLOG?REFRESH=10* works fine in the example above 
  
 See [Example 19 - WebLog](Tutorials.md#example-19---weblog) for a tutorial sketch demonstrating the use of `homeSpan.enableWebLog()` and the WEBLOG() macro.
  
@@ -81,7 +83,63 @@ For example, the following CSS changes the background color of the Web Log page 
  ```
  
 Note that HomeSpan outputs the full content of the Web Log HTML, including whatever CSS you may have specified above, to the Serial Monitor whenever the Log Level is set to 1 or greater.  Reviewing this output can be helpful when creating your own CSS.
- 
+
+### Adding User-Defined Data and/or Custom HTML
+
+Homespan provides a hook into the text used to generate the Web Log that you can extend to add your own data to the **initial table** as well as more generally add any custom HTML.
+
+To access this text, set a Web Log callback using `homeSpan.setWebLogCallback(void (*func)(String &htmlText))` where
+
+  * *func* is a function of type *void* that takes a single argument of type *String*, and
+  * *htmlText* is a String reference for you to add your custom HTML text
+
+To add your own data to the table, simply place it the String *htmlText* by adding as many `<tr>` and `<td>` HTML tags as needed.  If you wish to end the table and add any other HTML, simple include the `</table>` tag in *htmlText*, and then add any other custom HTML.  For example, the following function could be used to extend the initial Web Log table to show free DRAM, end the table, and provide a hot link to the HomeSpan Repo:
+
+```C++
+void extraData(String &r){
+  r="<tr><td>Free DRAM:</td><td>" + String(esp_get_free_internal_heap_size()) + " bytes</td></tr>\n" +
+    "</table><p><a href=\"https://github.com/HomeSpan/HomeSpan\">Click Here to Access HomeSpan Repo</a></p>";
+}
+```
+
+To embed this custom HTML text in the Web Log, call `homeSpan.setWebLogCallback(extraData)` in your sketch.
+
+### Accessing Web Log HTML from within your sketch
+
+In addition to (or as an alternative to) having HomeSpan serve HTML Web Log pages in response to HTTP requests, users can directly access the HTML text for a Web Log page from within their sketch for customized processing and handling.  Since the HTML for a Web Log page can be very large, HomeSpan only generates the HTML for a Web Log page when the page has been requested, and streams the HTML in sequential chunks of 1024 bytes in response to a Web Log HTTP request.  It is therefore not possible for HomeSpan to simply provide the user with a `char *` pointer to the HTML text for a complete Web Log.  Instead, HomeSpan provides the user with the following *homeSpan* method to trigger the production of a Web Log page and access the resulting HTML text whenever needed:
+
+`getWebLog(void (*f)(const char *htmlText, void *data), void *userData)`
+
+ * *f()* - a user-defined function that returns `void` and takes two arguments:
+   * *htmlText* - a null-terminated `const char *` pointer to a chunk of HTML text (max 1024 bytes) provided by HomeSpan
+   * *data* - a `void *` pointer to any user-provided data, *userData*
+ * *userData* - a `void *` pointer to any optional user-provided data that is passed to *f()* as its second argument, *data*
+
+When the above method is called from a sketch, HomeSpan will repeatedly call the user-defined function *f()* and provide sequential chunks of HTML text for the Web Log page as the first argument, *htmlText*.  Once all HTML chunks have been sent to the function *f()*, HomeSpan calls *f()* one final time with *htmlText* set to NULL to indicate there are no more HTML chunks to be sent.
+
+The primary purpose of this function is for the user to provide their own method of serving an HTML Web Log page, such as through a secure HTTPS channel.  Note this channel can be in addition to, or instead of, HomeSpan's normal serving of Web Log pages through HTTP requests depending on whether or not the URL argument used in the `homeSpan.enableWebLog()` method was set to NULL (disabling HomeSpan from serving Web Log pages in response to HTTP requests).
+
+The following psuedo-code snippet shows how `getWebLog()` can be used:
+
+```C++
+...
+homeSpan.enableWebLog(50,"pool.ntp.org","UTC",NULL);      // this enables the Web Log for 50 entries and sets the clock, but prevents HomeSpan from responding to any HTTP requests for a Web Log page
+...
+IF WEBLOG NEEDED THEN{
+  homeSpan.getWebLog(myWebLogHandler,NULL);               // this triggers HomeSpan to produce the HTML text for a Web Log page and stream the data to myWebLogHandler without any extra user data
+}
+...
+void myWebLogHandler(const char *htmlText, void *args){   // this is the user-defined Web Log handler (note the optional *arg parameter is not used in this example)
+  if(htmlText!=NULL){
+    DO SOMETHING WITH htmlText (e.g. transmit it to the user via an HTTPS connection)
+  }
+  else
+    PERFORM ANY CLEAN-UP PROCESSING (e.g. close the HTTPS connection)
+  }
+}
+```
+
+
  
 ---
 

@@ -1,7 +1,7 @@
 /*********************************************************************************
  *  MIT License
  *  
- *  Copyright (c) 2020-2023 Gregg E. Berman
+ *  Copyright (c) 2020-2025 Gregg E. Berman
  *  
  *  https://github.com/HomeSpan/HomeSpan
  *  
@@ -24,7 +24,41 @@
  *  SOFTWARE.
  *  
  ********************************************************************************/
-
+ 
 #pragma once
 
-#include "../src/extras/StepperControl.h"
+#ifndef HS_MALLOC
+
+#if defined(BOARD_HAS_PSRAM)
+#define HS_MALLOC ps_malloc
+#define HS_CALLOC ps_calloc
+#define HS_REALLOC ps_realloc
+#define ps_new(X) new(ps_malloc(sizeof(X)))X
+#else
+#define HS_MALLOC malloc
+#define HS_CALLOC calloc
+#define HS_REALLOC realloc
+#define ps_new(X) new X
+#endif
+
+template <class T>
+struct Mallocator {
+  typedef T value_type;
+  Mallocator() = default;
+  template <class U> constexpr Mallocator(const Mallocator<U>&) {}
+  [[nodiscard]] T* allocate(std::size_t n) {
+    auto p = static_cast<T*>(HS_MALLOC(n*sizeof(T)));
+    if(p==NULL){
+      Serial.printf("\n\n*** FATAL ERROR: Requested allocation of %d bytes failed.  Program Halting.\n\n",n*sizeof(T));
+      while(1);
+    }
+    return p;
+  }
+  void deallocate(T* p, std::size_t) noexcept { std::free(p); }
+};
+template <class T, class U>
+bool operator==(const Mallocator<T>&, const Mallocator<U>&) { return true; }
+template <class T, class U>
+bool operator!=(const Mallocator<T>&, const Mallocator<U>&) { return false; }
+
+#endif

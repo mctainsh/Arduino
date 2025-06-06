@@ -35,14 +35,25 @@ In addition to listening for incoming HAP requests, HomeSpan also continuously p
 * **d** - print the full HAP Accessory Attributes Database in JSON format
   * This outputs the full HAP Database in JSON format, exactly as it is transmitted to any HomeKit device that requests it (with the exception of the newlines and spaces that make it easier to read on the screen).  Note that the value tag for each Characteristic will reflect the *current* value on the device for that Characteristic.
   
-* **m** - print free heap memory (in bytes)
+* **m** - print free heap and stack memory (in bytes)
   * This prints the amount of memory available for use when creating new objects or allocating memory.  Useful for developers only.
-  
+
+* **p** - print partition table
+  * This prints the full partition table showing the names, starting addresses, and sizes of each partition.  For App partitions, the OTA verification state is also shown.  An asterisk (*) indicates the currently-running App partition.
+    
 * **W** - configure WiFi Credentials and restart
   * HomeSpan sketches *do not* contain WiFi network names or WiFi passwords.  Rather, this information is separately stored in a dedicated Non-Volatile Storage (NVS) partition in the ESP32's flash memory, where it is permanently retained until updated (with this command) or erased (see below).  When HomeSpan receives this command it first scans for any local WiFi networks.  If your network is found, you can specify it by number when prompted for the WiFi SSID.  Otherwise, you can directly type your WiFi network name.  After you then type your WiFi Password, HomeSpan updates the NVS with these new WiFi Credentials, and restarts the device.
   
 * **X** - delete WiFi Credentials and restart
   * This command deletes whatever WiFi Credentials have been stored in the device NVS, and restarts.
+ 
+* **D** - disconnect/reconnect to WiFi
+  * This command forces HomeSpan to disconnect from any WiFi network, after which it will automatically restart the connection process
+
+* **Z** - scan for available WiFi networks
+  * This command scans your WiFi network environment and displays the results on the Serial Monitor
+  * For mesh networks containing multiple access points sharing the same SSID, HomeSpan displays each access point separately
+  * It is okay to run this command regardless of whether or not HomeSpan is currently connected to a WiFi network
  
 * **S** \<code\> - change the HomeKit Pairing Setup Code to \<code\>
   * Every HomeKit device requires a unique 8-digit Setup Code used for pairing.  When HomeSpan is run for the first time on a new device it sets the HomeKit Setup Code to a default value of **466-37-726**, and stores it in a dedicated NVS partition.  This command allows you to update the stored Setup Code to any other 8-digit code.  Note that in accordance with HAP specifications, HomeSpan actually stores a hashed version of the Setup Code, rather than the Setup Code itself.  This means the actual value is not recoverable, so if you forget your Setup Code you'll need to run this command and create a new one.  Alternatively, you can restore the default Setup Code by fully erasing the NVS with the 'E' command.

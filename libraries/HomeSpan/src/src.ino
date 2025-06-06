@@ -1,7 +1,7 @@
 /*********************************************************************************
  *  MIT License
  *  
- *  Copyright (c) 2020-2023 Gregg E. Berman
+ *  Copyright (c) 2020-2025 Gregg E. Berman
  *  
  *  https://github.com/HomeSpan/HomeSpan
  *  
@@ -26,67 +26,66 @@
  ********************************************************************************/
 
 #include "HomeSpan.h"
+#include "FeatherPins.h"
+#include "SpanRollback.h"
 
-struct LED_Service : Service::LightBulb {
-
-  int ledPin;
-  SpanCharacteristic *power;
-  
-  LED_Service(int ledPin) : Service::LightBulb(){
-    power=new Characteristic::On();
-    this->ledPin=ledPin;
-    pinMode(ledPin,OUTPUT);    
-  }
-
-  boolean update(){            
-    digitalWrite(ledPin,power->getNewVal());   
-    return(true);  
-  }
-
-};
-      
-//////////////////////////////////////
-
-struct invertedLED : Blinkable {        // create a child class derived from Blinkable
-
-  int pin;                              // variable to store the pin number
-  
-  invertedLED(int pin) : pin{pin} {     // constructor that initializes the pin parameter
-    pinMode(pin,OUTPUT);                // set the pin to OUTPUT
-    digitalWrite(pin,HIGH);             // set pin HIGH (which is off for an inverted LED)
-  }
-
-  void on() override { digitalWrite(pin,LOW); }        // required function on() - sets pin LOW
-  void off() override { digitalWrite(pin,HIGH); }      // required function off() - sets pin HIGH
-  int getPin() override { return(pin); }               // required function getPin() - returns pin number
-};
-
-
-//////////////////////////////////////
+int watchDogSeconds=0;
 
 void setup() {
-  
+ 
   Serial.begin(115200);
 
-//  homeSpan.setLogLevel(-1);
-//  homeSpan.setSerialInputDisable(true);
-  homeSpan.enableOTA();
+  delay(1000);
 
-  homeSpan.setStatusDevice(new invertedLED(13));    // set Status LED to be a new Blinkable device attached to pin 13
-  homeSpan.setStatusAutoOff(30);
-
-  homeSpan.begin(Category::Lighting,"HomeSpan LED");
+//  homeSpan.setStatusPixel(18);
+  homeSpan.setControlPin(0);
   
-  new SpanAccessory();   
-    new Service::AccessoryInformation(); 
+//  homeSpan.enableWatchdog();
+  homeSpan.setLogLevel(2);
+  homeSpan.enableOTA();
+  homeSpan.setSketchVersion("1.9");
+  homeSpan.enableWebLog();
+  homeSpan.setCompileTime();
+  homeSpan.setStatusCallback([](HS_STATUS status){Serial.printf("\n*** HOMESPAN STATUS: %s\n\n",homeSpan.statusString(status));});
+
+  new SpanUserCommand('T'," - time delay",[](const char *buf){delay(20000);});
+  new SpanUserCommand('B'," - rollback",[](const char *buf){esp_ota_mark_app_invalid_rollback_and_reboot();});
+  new SpanUserCommand('v'," - validate sketch",[](const char *buf){homeSpan.markSketchOK();});
+  
+  new SpanUserCommand('w'," - watchdog",[](const char *buf){
+    for(int i=0;i<CONFIG_FREERTOS_NUMBER_OF_CORES;i++){
+    TaskHandle_t th;
+    th=xTaskGetIdleTaskHandleForCore(i);
+    char *name=pcTaskGetName(th);
+    boolean wdt=(ESP_OK==esp_task_wdt_status(th));
+    Serial.printf("%s: %s\n",name,wdt?"Enabled":"Disabled");
+  }});
+  
+  new SpanUserCommand('e'," - enable HomeSpan watchdog",[](const char *buf){homeSpan.enableWatchdog(atoi(buf+1));});
+  new SpanUserCommand('d'," - disable HomeSpan watchdog",[](const char *buf){homeSpan.disableWatchdog();});
+             
+  homeSpan.begin(Category::Lighting,"HomeSpan Test");
+
+  new SpanAccessory();
+    new Service::AccessoryInformation();  
       new Characteristic::Identify();
-    new LED_Service(13);  
+    new Service::LightBulb();
+      new Characteristic::On();
+
+//  homeSpan.setPollingCallback([](){homeSpan.markSketchOK();});
+//  sprintf(NULL,"HERE IS AN ERROR!");
+
+homeSpan.autoPoll(8192,1,1);
+
+//delay(20000);
+//int i=0; while(1) i++;
+
 }
+
 
 //////////////////////////////////////
 
-void loop(){ 
-  homeSpan.poll();
+void loop(){
+  
+//  homeSpan.poll();
 }
-
-//////////////////////////////////////

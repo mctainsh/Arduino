@@ -1,7 +1,7 @@
 /*********************************************************************************
  *  MIT License
  *  
- *  Copyright (c) 2020-2023 Gregg E. Berman
+ *  Copyright (c) 2020-2025 Gregg E. Berman
  *  
  *  https://github.com/HomeSpan/HomeSpan
  *  
@@ -28,13 +28,18 @@
 #pragma once
 
 #include <Arduino.h>
-#include <driver/timer.h>
+#include <esp_task_wdt.h>
+
+#include "PSRAM.h"
+
+[[maybe_unused]] static const char* WATCHDOG_TAG = "HomeSpan Watchdog";
 
 namespace Utils {
 
 char *readSerial(char *c, int max);   // read serial port into 'c' until <newline>, but storing only first 'max' characters (the rest are discarded)
 String mask(char *c, int n);          // simply utility that creates a String from 'c' with all except the first and last 'n' characters replaced by '*'
-  
+char *stripBackslash(char *c);        // strips backslashes out of c (Apple unecessesarily "escapes" forward slashes in JSON)
+const char *resetReason();            // returns literal string description of esp_reset_reason()
 }
 
 /////////////////////////////////////////////////
@@ -42,27 +47,58 @@ String mask(char *c, int n);          // simply utility that creates a String fr
 // going out of scope
 
 template <class bufType>
-struct TempBuffer {
-  bufType *buf;
-  int nBytes;
+class TempBuffer {
+
+  private:
   
-  TempBuffer(size_t len){
-    nBytes=len*sizeof(bufType);
-    buf=(bufType *)heap_caps_malloc(nBytes,MALLOC_CAP_8BIT);
+  bufType *buf=NULL;
+  size_t nElements;
+
+  public:
+  
+  TempBuffer(size_t _nElements=1) : nElements(_nElements) {
+    buf=(bufType *)HS_MALLOC(nElements*sizeof(bufType));
     if(buf==NULL){
-      Serial.print("\n\n*** FATAL ERROR: Requested allocation of ");
-      Serial.print(nBytes);
-      Serial.print(" bytes failed.  Program Halting.\n\n");
+      Serial.printf("\n\n*** FATAL ERROR: Requested allocation of %d bytes failed.  Program Halting.\n\n",nElements*sizeof(bufType));
       while(1);
     }
    }
 
+  TempBuffer(bufType *addBuf...) : nElements(0) {
+    va_list args;
+    va_start(args,addBuf);
+    while(addBuf!=NULL){
+      size_t addElements=va_arg(args,size_t);    
+      buf=(bufType *)HS_REALLOC(buf,(nElements+addElements)*sizeof(bufType));
+      if(buf==NULL){
+        Serial.printf("\n\n*** FATAL ERROR: Requested allocation of %d bytes failed.  Program Halting.\n\n",nElements*sizeof(bufType));
+        while(1);
+      }
+      memcpy(buf+nElements,addBuf,addElements*sizeof(bufType));
+      nElements+=addElements;
+      addBuf=va_arg(args,bufType *);
+    }
+    va_end(args);   
+   }
+   
   ~TempBuffer(){
-    heap_caps_free(buf);
+    free(buf);
   }
 
   int len(){
-    return(nBytes);
+    return(nElements*sizeof(bufType));
+  }
+
+  int size(){
+    return(nElements);
+  }
+
+  bufType *get(){
+    return(buf);
+  }
+
+  operator bufType*() const{
+    return(buf);
   }
   
 };
@@ -70,12 +106,6 @@ struct TempBuffer {
 ////////////////////////////////
 //         PushButton         //
 ////////////////////////////////
-
-#if SOC_TOUCH_VERSION_2
-typedef uint32_t touch_value_t;
-#else
-typedef uint16_t touch_value_t;
-#endif
 
 class PushButton{
   
@@ -85,15 +115,23 @@ class PushButton{
   uint32_t singleAlarm;
   uint32_t doubleAlarm;
   uint32_t longAlarm;
+
+#if defined(SOC_TOUCH_VERSION_1) || SOC_TOUCH_SENSOR_VERSION==1
+  typedef uint16_t touch_value_t;
+#else
+  typedef uint32_t touch_value_t;
+#endif
   
   static touch_value_t threshold;
   static const int calibCount=20;
+
+  public:
+
+  typedef boolean (*triggerType_t)(int pin);
   
   protected:
 
   int pressType;
-  typedef boolean (*triggerType_t)(int pin);
-
   int pin;
   triggerType_t triggerType;
 
@@ -111,10 +149,10 @@ class PushButton{
   static boolean TRIGGER_ON_HIGH(int pin){return(digitalRead(pin));}
 
 #if SOC_TOUCH_SENSOR_NUM > 0
-#if SOC_TOUCH_VERSION_2
-  static boolean TRIGGER_ON_TOUCH(int pin){return(touchRead(pin)>threshold);}
-#else
+#if defined(SOC_TOUCH_VERSION_1) || SOC_TOUCH_SENSOR_VERSION==1
   static boolean TRIGGER_ON_TOUCH(int pin){return(touchRead(pin)<threshold);}
+#else
+  static boolean TRIGGER_ON_TOUCH(int pin){return(touchRead(pin)>threshold);}
 #endif
 #endif
 
@@ -200,4 +238,22 @@ class PushButton{
 
 #endif
 
+};
+
+////////////////////////////////
+//      hsWatchdogTimer       //
+////////////////////////////////
+
+class hsWatchdogTimer {
+
+  uint16_t nSeconds=0;
+  esp_task_wdt_user_handle_t wdtHandle=NULL;
+
+  public:
+
+  hsWatchdogTimer(){};
+  void enable(uint16_t nSeconds);
+  void disable();
+  void reset();
+  uint16_t getSeconds();
 };

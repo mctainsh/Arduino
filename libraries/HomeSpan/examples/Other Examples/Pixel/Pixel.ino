@@ -61,7 +61,6 @@
 #endif
  
 #include "HomeSpan.h"
-#include "extras/Pixel.h"                       // include the HomeSpan Pixel class
 
 ///////////////////////////////
 
@@ -72,12 +71,12 @@ struct NeoPixel_RGB : Service::LightBulb {      // Addressable single-wire RGB L
   Characteristic::Saturation S{0,true};
   Characteristic::Brightness V{100,true};
   Pixel *pixel;
-  uint8_t nPixels;
+  int nPixels;
   
-  NeoPixel_RGB(uint8_t pin, uint8_t nPixels) : Service::LightBulb(){
+  NeoPixel_RGB(uint8_t pin, int nPixels) : Service::LightBulb(){
 
     V.setRange(5,100,1);                      // sets the range of the Brightness to be from a min of 5%, to a max of 100%, in steps of 1%
-    pixel=new Pixel(pin);                     // creates Pixel LED on specified pin
+    pixel=new Pixel(pin);                     // creates Pixel RGB LED on specified pin
     this->nPixels=nPixels;                    // save number of Pixels in this LED Strand
     update();                                 // manually call update() to set pixel with restored initial values
   }
@@ -106,12 +105,12 @@ struct NeoPixel_RGBW : Service::LightBulb {      // Addressable single-wire RGBW
   Characteristic::Brightness V{100,true};
   Characteristic::ColorTemperature T{140,true};
   Pixel *pixel;
-  uint8_t nPixels;
+  int nPixels;
   
-  NeoPixel_RGBW(uint8_t pin, uint8_t nPixels) : Service::LightBulb(){
+  NeoPixel_RGBW(uint8_t pin, int nPixels) : Service::LightBulb(){
 
     V.setRange(5,100,1);                      // sets the range of the Brightness to be from a min of 5%, to a max of 100%, in steps of 1%
-    pixel=new Pixel(pin,true);                // creates Pixel RGBW LED (second parameter set to true for RGBW) on specified pin
+    pixel=new Pixel(pin,"GRBW");              // creates Pixel RGBW LED on specified pin (with order of colors changed to reflect this specific NeoPixel device)
     this->nPixels=nPixels;                    // save number of Pixels in this LED Strand
     update();                                 // manually call update() to set pixel with restored initial values
   }
@@ -142,9 +141,9 @@ struct DotStar_RGB : Service::LightBulb {      // Addressable two-wire RGB LED S
   Characteristic::Saturation S{0,true};
   Characteristic::Brightness V{100,true};
   Dot *pixel;
-  uint8_t nPixels;
+  int nPixels;
   
-  DotStar_RGB(uint8_t dataPin, uint8_t clockPin, uint8_t nPixels) : Service::LightBulb(){
+  DotStar_RGB(uint8_t dataPin, uint8_t clockPin, int nPixels) : Service::LightBulb(){
 
     V.setRange(5,100,1);                      // sets the range of the Brightness to be from a min of 5%, to a max of 100%, in steps of 1%
     pixel=new Dot(dataPin,clockPin);          // creates Dot LED on specified pins
