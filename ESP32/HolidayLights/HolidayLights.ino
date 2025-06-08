@@ -44,19 +44,23 @@
 //#include "extras/Pixel.h"  // include the HomeSpan Pixel class
 #include <Adafruit_NeoPixel.h>
 #include "globals.h"
+#include "Effects.h"
 
-#include "Pixel_Strand.h"
 
 boolean _powerOn = false;
 
-//NeoPixel() : Adafruit_NeoPixel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800)
-// Neopixel strip 
-//Pixel g_pixel = Pixel(NEOPIXEL_RGBW_PIN, false);	// 12V
-Pixel g_pixel = Pixel(NEOPIXEL_RGBW_PIN, false);
-//Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
-// Colour for each pixel on the strip (calloc'ed) later
-Pixel::Color *g_colors;
+// Declare our NeoPixel strip object:
+Adafruit_NeoPixel g_strip(PIXEL_COUNT, NEOPIXEL_RGBW_PIN, NEO_GRB + NEO_KHZ800);
+// Argument 1 = Number of pixels in NeoPixel strip
+// Argument 2 = Arduino pin number (most are valid)
+// Argument 3 = Pixel type flags, add together as needed:
+//   NEO_KHZ800  800 KHz bitstream (most NeoPixel products w/WS2812 LEDs)
+//   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
+//   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
+//   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
+//   NEO_RGBW    Pixels are wired for RGBW bitstream (NeoPixel RGBW products)
+
 
 /////////////////////////////////////////////////////////////////////////////////////////////
 void TurnOnStrip(bool on)
@@ -72,8 +76,9 @@ void TurnOnStrip(bool on)
 	_powerOn = on;
 }
 
-void onWifiLoaded()
+void onSetConnection(int mode)
 {
+	Serial.printf("onSetConnection -> %d\r\n", mode);
 	//	_pixel->set(Pixel::Color().RGB(255, 0, 0, 99), 1);
 	//digitalWrite(STRIP_POWER, LOW);
 	//pixel->off();
@@ -82,23 +87,19 @@ void onWifiLoaded()
 
 void setup()
 {
-	// Define colour map
-
-	// Allocation the memory for status pixel display
-	const int32_t STATUS_PIXELS = 5;
-	Pixel::Color *colors = (Pixel::Color *)calloc(STATUS_PIXELS, sizeof(Pixel::Color));
-	colors[0].RGB(255, 0, 0);
-	colors[1].RGB(0, 0, 255);
-	colors[2].RGB(255, 0, 255);
-	colors[3].RGB(0, 255, 0);
-
-	Serial.begin(115200);
+	//Serial.begin(115200);
 	Serial.printf("JRM:Starting V%s %s\n", MY_VERSION, PARING_CODE);
 
 	// Show a few pixels
 	Serial.printf("Activate strip on pin %d\n", NEOPIXEL_RGBW_PIN);
 	TurnOnStrip(true);
-	g_pixel.set(colors, 1);
+
+	g_strip.begin();			  // INITIALIZE NeoPixel strip object (REQUIRED)
+	g_strip.show();			  // Turn OFF all pixels ASAP
+	g_strip.setBrightness(100);  // Set BRIGHTNESS to about 1/5 (max = 255)
+
+	g_strip.setPixelColor(1, g_strip.Color(255, 0, 0));
+	g_strip.show();
 
 	// System detail
 	Serial.printf("Internal heap\n");
@@ -129,8 +130,10 @@ void setup()
 	//Serial.print( "  DNS         %s\n", WiFi.dnsIP());
 
 	// Setup homespan
-	g_pixel.set(colors, 2);
-	homeSpan.setWifiCallback(onWifiLoaded);
+	g_strip.setPixelColor(1, g_strip.Color(0, 255, 0));
+	g_strip.show();
+
+	homeSpan.setConnectionCallback(onSetConnection);
 
 	homeSpan.setStatusPin(STATUS_LED_PIN);		 // 9 Is blue, 10 is red
 	homeSpan.setStatusAutoOff(30);				 // Turn off status LED after 30 seconds
@@ -142,12 +145,14 @@ void setup()
 	// Setup to jump to WIFI setup if no WIFI config
 	//homeSpan.setApPassword("homespan");
 	homeSpan.enableAutoStartAP();
-	//homeSpan.setWifiCredentials("RhinoNBN", "##########");
+	//homeSpan.setWifiCredentials("RhinoNBN", "");
 
 	homeSpan.begin(Category::Lighting, BRIDGE_NAME);
 
 	// Setup the acessory
-	g_pixel.set(colors, 3);
+	g_strip.setPixelColor(2, g_strip.Color(0,0,255));
+	g_strip.show();
+
 	new SpanAccessory();
 	new Service::AccessoryInformation();
 	new Characteristic::Name(BRIDGE_NAME);
@@ -160,19 +165,19 @@ void setup()
 	new Service::HAPProtocolInformation();
 	new Characteristic::Version("1.1.0");
 
-	new Pixel_Strand(&g_pixel, PIXEL_COUNT);
 
 	// Complete
-	g_pixel.set(colors, 4);
+	g_strip.setPixelColor(3, g_strip.Color(255,0,255));
+	g_strip.show();
 }
 
-//Rainbow_5 rain = Rainbow_5();
+Rainbow_5 rain = Rainbow_5();
 
 
 void loop()
 {
-//TurnOnStrip(true);
-//rain.update();
-//return;
+TurnOnStrip(true);
+rain.update();
+return;
 	homeSpan.poll();
 }

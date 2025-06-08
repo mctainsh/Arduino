@@ -1,5 +1,10 @@
 #pragma once
 
+#include <Adafruit_NeoPixel.h>
+#ifdef __AVR__
+#include <avr/power.h>	// Required for 16 MHz Adafruit Trinket
+#endif
+
 // NOTE : Accessa Point Password "homespan"
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -25,7 +30,7 @@
 //#define NEO_BRG ((1 << 6) | (1 << 4) | (2 << 2) | (0)) ///< Transmit as B,R,G
 //#define NEO_BGR ((2 << 6) | (2 << 4) | (1 << 2) | (0)) ///< Transmit as B,G,R
 
-#define MY_VERSION "2.39"
+#define MY_VERSION "3.48"
 // Maximum power is 255. 50 is a good value
 //  88 = 2.9A on 308 LEDs
 // 188 = 3.8A on 308 LEDssmart
@@ -90,18 +95,19 @@ const char* MANUFACTURER = "Secure Hub";
 //const char* SERIAL_NO   = "JRM.008.21";			// Claudia's TV
 //const char* BRIDGE_NAME = "Claudias TV Lights";	
 //const char* PARING_CODE = "88880021";
-const char* SERIAL_NO   = "JRM.008.23";			// Farm Curtain TV
-const char* BRIDGE_NAME = "Farm Master Curtain 2";	
-const char* PARING_CODE = "88880023";
+//const char* SERIAL_NO   = "JRM.008.23";			// Farm Curtain TV
+//const char* BRIDGE_NAME = "Farm Master Curtain 2";	
+//const char* PARING_CODE = "88880023";
+const char* SERIAL_NO   = "JRM.008.25";			// Farm Curtain TV
+const char* BRIDGE_NAME = "Master Curtain 1";	
+const char* PARING_CODE = "88880025";
 
 #define PIXEL_COUNT 300
 // Claudia TV = 135		
 
 // The Neopixel controller
-extern Pixel g_pixel;
+extern Adafruit_NeoPixel g_strip;
 
-// Array for pixels to fill with colour
-extern Pixel::Color *g_colors;
 
 // Turn on pixel
 void TurnOnStrip(bool on);

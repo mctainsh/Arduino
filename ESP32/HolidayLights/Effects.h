@@ -51,8 +51,11 @@ struct ManualControl_1 : SpecialEffect
 
 	uint32_t update() override
 	{
+		Serial.printf("ManualControl_1 %d %d %d\r\n", _h, _s, _v);
 		TurnOnStrip(true);
-		g_pixel.set(Pixel::Color().HSV(_h, _s, _v), PIXEL_COUNT);
+		//g_strip.set(Pixel::Color().HSV(_h, _s, _v), PIXEL_COUNT);
+		g_strip.fill(g_strip.ColorHSV(_h, _s, _v), 0, PIXEL_COUNT);
+		g_strip.show();
 		return (5 * 1000);
 	}
 };
@@ -74,14 +77,14 @@ struct KnightRider_2 : SpecialEffect
 		float level = _v;
 		for (int i = 0; i < PIXEL_COUNT; i++, level *= 0.8)
 		{
-			g_colors[PIXEL_COUNT + i - 1].HSV(_h, _s, level);
-			g_colors[PIXEL_COUNT - i - 1] = g_colors[PIXEL_COUNT + i - 1];
+//			g_colors[PIXEL_COUNT + i - 1].HSV(_h, _s, level);
+//			g_colors[PIXEL_COUNT - i - 1] = g_colors[PIXEL_COUNT + i - 1];
 		}
 	}
 
 	uint32_t update() override
 	{
-		g_pixel.set(g_colors + phase, PIXEL_COUNT);
+	//	g_pixel.set(g_colors + phase, PIXEL_COUNT);
 		if (phase == PIXEL_COUNT - 1)
 			dir = -1;
 		else if (phase == 0)
@@ -110,9 +113,9 @@ struct Random_3 : SpecialEffect
 
 	uint32_t update() override
 	{
-		for (int i = 0; i < PIXEL_COUNT; i++)
-			g_colors[i].HSV((esp_random() % 6) * 60, 100, _v);
-		g_pixel.set(g_colors, PIXEL_COUNT);
+	//	for (int i = 0; i < PIXEL_COUNT; i++)
+	//		g_colors[i].HSV((esp_random() % 6) * 60, 100, _v);
+	//	g_pixel.set(g_colors, PIXEL_COUNT);
 		return (1000);
 	}
 
@@ -145,8 +148,8 @@ struct Twinkle_4 : SpecialEffect
 
 		for (int i = 0; i < PIXEL_COUNT; i++)
 		{
-			g_colors[i].RGB(0, 0, 0);
-			_dir[i] = 0;
+	//		g_colors[i].RGB(0, 0, 0);
+//			_dir[i] = 0;
 		}
 	}
 
@@ -155,35 +158,35 @@ struct Twinkle_4 : SpecialEffect
 		const Pixel::Color BLACK = Pixel::Color().RGB(0, 0, 0);
 		for (int i = 0; i < PIXEL_COUNT; i++)
 		{
-			if (g_colors[i] == BLACK)
-			{
-				// (0.5%) of the time Start turning on the star
-				if (esp_random() % 200 == 0)
-				{
-					_dir[i] = 15;
-					_colours[i] = (esp_random() % 8) + 1;
-				}
-				else
-				{
-					_dir[i] = 0;
-				}
-			}
-			//else if (g_colors[i] == BLACK || esp_random() % 10 == 0)
-			else if (esp_random() % 10 == 0)
-			{
-				// Randomly dim it 10%
-				_dir[i] = -15;
-			}
+//			if (g_colors[i] == BLACK)
+//			{
+//				// (0.5%) of the time Start turning on the star
+//				if (esp_random() % 200 == 0)
+//				{
+//					_dir[i] = 15;
+//					_colours[i] = (esp_random() % 8) + 1;
+//				}
+//				else
+//				{
+//					_dir[i] = 0;
+//				}
+//			}
+//			//else if (g_colors[i] == BLACK || esp_random() % 10 == 0)
+//			else if (esp_random() % 10 == 0)
+//			{
+//				// Randomly dim it 10%
+//				_dir[i] = -15;
+//			}
 
 			int8_t dir = _dir[i];
 			int8_t color = _colours[i];
 			// Add the direction value to the pixel
-			g_colors[i] += Pixel::Color().RGB(
-			  (color & 0x01) > 0 ? dir : 0,
-			  (color & 0x02) > 0 ? dir : 0,
-			  (color & 0x04) > 0 ? dir : 0);
+//			g_colors[i] += Pixel::Color().RGB(
+//			  (color & 0x01) > 0 ? dir : 0,
+//			  (color & 0x02) > 0 ? dir : 0,
+//			  (color & 0x04) > 0 ? dir : 0);
 		}
-		g_pixel.set(g_colors, PIXEL_COUNT);
+//		g_pixel.set(g_colors, PIXEL_COUNT);
 		return (50);
 	}
 
@@ -212,8 +215,12 @@ struct Rainbow_5 : SpecialEffect
 		//TurnOnStrip(true);
 		int startHue = millis()/15;
 		for (int i = 0; i < PIXEL_COUNT; i++)
-			g_colors[i].HSV(startHue + i, 100, _v);
-		g_pixel.set(g_colors, PIXEL_COUNT);
+		//g_colors[i].HSV(startHue + i, 100, _v);
+			g_strip.setPixelColor(i, g_strip.ColorHSV(startHue + i, 100, _v));
+		g_strip.show();
+
+			
+		//g_pixel.set(g_colors, PIXEL_COUNT);
 		return (1);
 	}
 
@@ -244,15 +251,15 @@ struct RaceTrack_6 : SpecialEffect
 	{
 		for (int i = 0; i < PIXEL_COUNT; i++)
 		{
-			if (i == phase)
-				g_colors[i].HSV(H, 100, _v);
-			else if (i == PIXEL_COUNT - 1 - phase)
-				g_colors[i].HSV(H + 180, 100, _v);
-			else
-				g_colors[i].RGB(0, 0, 0, 0);
+	//		if (i == phase)
+	//			g_colors[i].HSV(H, 100, _v);
+	//		else if (i == PIXEL_COUNT - 1 - phase)
+	//			g_colors[i].HSV(H + 180, 100, _v);
+	//		else
+	//			g_colors[i].RGB(0, 0, 0, 0);
 		}
 
-		g_pixel.set(g_colors, PIXEL_COUNT);
+	//	g_pixel.set(g_colors, PIXEL_COUNT);
 		phase = (phase + dir) % PIXEL_COUNT;
 
 		if (phase == 0)
