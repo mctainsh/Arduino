@@ -66,7 +66,8 @@ void setup()
 	// Start the bridge
 	homeSpan.begin(Category::Bridges, BRIDGE_NAME);
 	homeSpan.setWifiCredentials("RhinoNBN", "");
-	//homeSpan.setWifiCredentials("TPPW4G_9332", "");
+	//homeSpan.setWifiCredentials("TPPW4G_9332", "76086856");
+	//homeSpan.setWifiCredentials("NetComm 1408", "fididuwewi");
 
 	// Setup the parting code (Should be unique on the network)
 	homeSpan.setPairingCode(PARING_CODE);

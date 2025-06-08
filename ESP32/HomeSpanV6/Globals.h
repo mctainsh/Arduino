@@ -5,7 +5,7 @@
 // Duration of the fade
 #define POWER_FADE_MS 3000.0
 
-#define PIXEL_COUNT 300
+//#define PIXEL_COUNT 300
 
 #define MAX_BRIGHTNESS 255
 
@@ -53,18 +53,22 @@ const char* MANUFACTURER = "Secure Hub";
 
 // Make the following unique for each device (Bridge and paring setup code)
 // Default Paring Code "46637726"
-const char* SERIAL_NO	= "JRM.008.2";		// Home bedroom LEDS = 108
-const char* BRIDGE_NAME = "SH Bridge 01";		
-const char* PARING_CODE = "88880001";	
-#define PIXEL_COUNT 108
+//const char* SERIAL_NO	= "JRM.008.2";		// Home bedroom LEDS = 108
+//const char* BRIDGE_NAME = "SH Bridge 01";		
+//const char* PARING_CODE = "88880001";	
+//#define PIXEL_COUNT 108
 
 //const char* BRIDGE_NAME = "SH Bridge 02";		// Flat floor bed 300 LEDS=300
 //const char* PARING_CODE = "88880002";
+
+
 //const char* BRIDGE_NAME = "SH Bridge 03";
 //const char* PARING_CODE = "88880003";
 
-//const char* BRIDGE_NAME = "SH Lego 01";		// Claudia's Lego #1
-//const char* PARING_CODE = "88880010";
+const char* SERIAL_NO	= "JRM.008.3";		// Big strip back wall and mirror
+const char* BRIDGE_NAME = "SH Lego 01";	// Claudia's Lego #1
+const char* PARING_CODE = "88880010";
+#define PIXEL_COUNT 600
 
 //const char* BRIDGE_NAME = "Stranger Things";	// Claudia's Lego #2 Stranger times
 //const char* PARING_CODE = "88880011";
@@ -98,13 +102,21 @@ const char* PARING_CODE = "88880001";
 //const char* BRIDGE_NAME = "Farm Master Curtain 2";	
 //const char* PARING_CODE = "88880023";
 
-//const char* SERIAL_NO   = "JRM.008.25";			// Master bedroom curtain
-//const char* BRIDGE_NAME = "Master Curtain 1";	
+//const char* SERIAL_NO   = "JRM.008.25"; // Master bedroom curtain
+//const char* BRIDGE_NAME = "Master Curtain 1";
 //const char* PARING_CODE = "46637726 ";
+//#define PIXEL_COUNT 600
 
 //const char* SERIAL_NO   = "JRM.008.26";			// Long 12V strip
 //const char* BRIDGE_NAME = "Long 12V";	
 //const char* PARING_CODE = "88880026";
+//#define PIXEL_COUNT 600
+//#define IS_W2815_12V true
+
+//const char* SERIAL_NO   = "JRM.008.27"; // Farm 12V strip
+//const char* BRIDGE_NAME = "Long 12V";
+//const char* PARING_CODE = "88880027";
+//#define PIXEL_COUNT 600
 //#define IS_W2815_12V true
 
 extern Adafruit_NeoPixel g_strip;
