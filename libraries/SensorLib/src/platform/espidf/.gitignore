@@ -1,0 +1,4 @@
+/SensorCommEspIDF_HW.hpp
+/SensorCommEspIDF_I2C.hpp
+/SensorCommEspIDF_SPI.hpp
+/SensorEspIDF_Lock.hpp

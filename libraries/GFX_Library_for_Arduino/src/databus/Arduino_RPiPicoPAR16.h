@@ -1,4 +1,4 @@
-#if defined(TARGET_RP2040)
+#if defined(TARGET_RP2040) || defined(PICO_RP2350)
 
 #ifndef _ARDUINO_RPIPICOPAR16_H_
 #define _ARDUINO_RPIPICOPAR16_H_
@@ -32,12 +32,12 @@ public:
 
 protected:
 private:
-  INLINE void WRITE(uint8_t d);
-  INLINE void WRITE16(uint16_t d);
-  INLINE void DC_HIGH(void);
-  INLINE void DC_LOW(void);
-  INLINE void CS_HIGH(void);
-  INLINE void CS_LOW(void);
+  GFX_INLINE void WRITE(uint8_t d);
+  GFX_INLINE void WRITE16(uint16_t d);
+  GFX_INLINE void DC_HIGH(void);
+  GFX_INLINE void DC_LOW(void);
+  GFX_INLINE void CS_HIGH(void);
+  GFX_INLINE void CS_LOW(void);
 
   int8_t _dc, _cs, _wr, _rd;
 
@@ -49,4 +49,4 @@ private:
 
 #endif // _ARDUINO_RPIPICOPAR16_H_
 
-#endif // #if defined(TARGET_RP2040)
+#endif // #if defined(TARGET_RP2040) || defined(PICO_RP2350)

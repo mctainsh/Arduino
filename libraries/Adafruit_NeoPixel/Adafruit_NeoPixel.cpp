@@ -65,6 +65,10 @@
 #endif
 #endif
 
+#if defined(ARDUINO_ARCH_MBED)
+#include "mbed.h"  // Needed for DigitalOut and PinName
+#endif
+
 /*!
   @brief   NeoPixel constructor when length, pin and pixel type are known
            at compile-time.
@@ -92,6 +96,11 @@ Adafruit_NeoPixel::Adafruit_NeoPixel(uint16_t n, int16_t p, neoPixelType t)
   }
   init = true;
 #endif
+#if defined(ESP32)
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+  espInit();
+#endif
+#endif
 }
 
 /*!
@@ -117,6 +126,13 @@ Adafruit_NeoPixel::Adafruit_NeoPixel()
   @brief   Deallocate Adafruit_NeoPixel object, set data pin back to INPUT.
 */
 Adafruit_NeoPixel::~Adafruit_NeoPixel() {
+#ifdef ARDUINO_ARCH_ESP32
+  // Release RMT resources (RMT channels and led_data)
+  // by indirectly calling into espShow()
+  memset(pixels, 0, numBytes);
+  numLEDs = numBytes = 0;
+  show();
+#endif
   free(pixels);
   if (pin >= 0)
     pinMode(pin, INPUT);
@@ -224,7 +240,162 @@ void  Adafruit_NeoPixel::rp2040Show(uint8_t pin, uint8_t *pixels, uint32_t numBy
     // Bits for transmission must be shifted to top 8 bits
     pio_sm_put_blocking(pio, sm, ((uint32_t)*pixels++)<< 24);
 }
+#elif defined(ARDUINO_ARCH_CH32)
 
+// F_CPU is defined to SystemCoreClock (not constant number)
+#if SYSCLK_FREQ_144MHz_HSE == 144000000 || SYSCLK_FREQ_HSE == 144000000 || \
+  SYSCLK_FREQ_144MHz_HSI == 144000000 || SYSCLK_FREQ_HSI == 144000000
+#define CH32_F_CPU 144000000
+
+#elif SYSCLK_FREQ_120MHz_HSE == 120000000 || SYSCLK_FREQ_HSE == 120000000 || \
+  SYSCLK_FREQ_120MHz_HSI == 120000000 || SYSCLK_FREQ_HSI == 120000000
+#define CH32_F_CPU 120000000
+
+#elif SYSCLK_FREQ_96MHz_HSE == 96000000 || SYSCLK_FREQ_HSE == 96000000 || \
+  SYSCLK_FREQ_96MHz_HSI == 96000000 || SYSCLK_FREQ_HSI == 96000000
+#define CH32_F_CPU 96000000
+
+#elif SYSCLK_FREQ_72MHz_HSE == 72000000 || SYSCLK_FREQ_HSE == 72000000 || \
+  SYSCLK_FREQ_72MHz_HSI == 72000000 || SYSCLK_FREQ_HSI == 72000000
+#define CH32_F_CPU 72000000
+
+#elif SYSCLK_FREQ_56MHz_HSE == 56000000 || SYSCLK_FREQ_HSE == 56000000 || \
+  SYSCLK_FREQ_56MHz_HSI == 56000000 || SYSCLK_FREQ_HSI == 56000000
+#define CH32_F_CPU 56000000
+
+#elif SYSCLK_FREQ_48MHz_HSE == 48000000 || SYSCLK_FREQ_HSE == 48000000 || \
+  SYSCLK_FREQ_48MHz_HSI == 48000000 || SYSCLK_FREQ_HSI == 48000000
+#define CH32_F_CPU 48000000
+
+#endif
+
+static void ch32Show(GPIO_TypeDef* ch_port, uint32_t ch_pin, uint8_t* pixels, uint32_t numBytes, bool is800KHz) {
+  // not support 400khz
+  if (!is800KHz) return;
+
+  volatile uint32_t* set = &ch_port->BSHR;
+  volatile uint32_t* clr = &ch_port->BCR;
+
+  uint8_t* ptr = pixels;
+  uint8_t* end = ptr + numBytes;
+  uint8_t p = *ptr++;
+  uint8_t bitMask = 0x80;
+
+  // NVIC_DisableIRQ(SysTicK_IRQn);
+
+  while (1) {
+    if (p & bitMask) { // ONE
+      // High 800ns
+      *set = ch_pin;
+      __asm volatile ("nop; nop; nop; nop; nop; nop; nop; nop;"
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+        "nop;"
+#if CH32_F_CPU >= 72000000
+        "nop; nop; nop; nop; nop; nop; nop;"
+        "nop; nop; nop; nop; nop; nop;"
+#endif
+#if CH32_F_CPU >= 96000000
+        "nop; nop;"
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+#endif
+#if CH32_F_CPU >= 120000000
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+#endif
+#if CH32_F_CPU >= 144000000
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+#endif
+        );
+
+      // Low 450ns
+      *clr = ch_pin;
+      __asm volatile ("nop; nop; nop; nop; nop; nop; nop; nop;"
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+        "nop;"
+#if CH32_F_CPU >= 72000000
+        "nop; nop; nop; nop; nop; nop; nop; nop; nop;"
+#endif
+#if CH32_F_CPU >= 96000000
+        "nop; nop; nop; nop; nop; nop;"
+#endif
+#if CH32_F_CPU >= 120000000
+        "nop; nop; nop; nop; nop;"
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+#endif
+#if CH32_F_CPU >= 144000000
+        "nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop;"
+#endif
+        );
+    } else {   // ZERO
+      // High 400ns
+      *set = ch_pin;
+      __asm volatile ("nop; nop; nop; nop; nop; nop; nop; nop;"
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+        "nop;"
+#if CH32_F_CPU >= 72000000
+        "nop; nop; nop; nop; nop; nop; nop;"
+#endif
+#if CH32_F_CPU >= 96000000
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+#endif
+#if CH32_F_CPU >= 120000000
+        "nop; nop; nop; "
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+#endif
+#if CH32_F_CPU >= 144000000
+        "nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop;"
+#endif
+        );
+
+      // Low 850ns
+      *clr = ch_pin;
+      __asm volatile ("nop; nop; nop; nop; nop; nop; nop; nop;"
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+        "nop; nop; nop; nop; nop;"
+#if CH32_F_CPU >= 72000000
+        "nop; nop; nop;"
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+#endif
+#if CH32_F_CPU >= 96000000
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+        "nop; nop; nop; nop; nop; nop;"
+#endif
+#if CH32_F_CPU >= 120000000
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+        "nop; nop; nop; nop; nop; nop; nop; nop;"
+        "nop; nop; nop; nop; nop; nop;"
+#endif
+#if CH32_F_CPU >= 144000000
+        "nop; nop; nop; nop;"
+        "nop; nop; nop; nop; nop; nop; nop; nop; nop; nop; nop;"
+#endif
+        );
+    }
+
+    if (bitMask >>= 1) {
+      // Move on to the next pixel
+      asm("nop;");
+    }
+    else {
+      if (ptr >= end) {
+        break;
+      }
+      p = *ptr++;
+      bitMask = 0x80;
+    }
+  }
+
+  // NVIC_EnableIRQ(SysTicK_IRQn);
+}
 #endif
 
 #if defined(ESP8266)
@@ -234,6 +405,7 @@ extern "C" IRAM_ATTR void espShow(uint16_t pin, uint8_t *pixels,
 #elif defined(ESP32)
 extern "C" void espShow(uint16_t pin, uint8_t *pixels, uint32_t numBytes,
                         uint8_t type);
+
 #endif // ESP8266
 
 #if defined(K210)
@@ -282,8 +454,8 @@ void Adafruit_NeoPixel::show(void) {
     // state, computes 'pin high' and 'pin low' values, and writes these back
     // to the PORT register as needed.
 
-    // NRF52 may use PWM + DMA (if available), may not need to disable interrupt
-    // ESP32 may not disable interrupts because espShow() uses RMT which tries to acquire locks
+  // NRF52 may use PWM + DMA (if available), may not need to disable interrupt
+  // ESP32 may not disable interrupts because espShow() uses RMT which tries to acquire locks
 #if !(defined(NRF52) || defined(NRF52_SERIES) || defined(ESP32))
   noInterrupts(); // Need 100% focus on instruction timing
 #endif
@@ -2915,8 +3087,8 @@ if(is800KHz) {
   TC_Stop(TC1, 0);
 
 
-// RENESAS including UNO R4
-#elif defined(ARDUINO_ARCH_RENESAS) || defined(ARDUINO_ARCH_RENESAS_UNO) || defined(ARDUINO_ARCH_RENESAS_PORTENTA)
+// RENESAS including Arduino UNO R4 + STM32H7 Arduino Portenta H7 (Dual Core M7+M4) / Arduino Giga R1
+#elif defined(ARDUINO_ARCH_RENESAS) || defined(ARDUINO_ARCH_RENESAS_UNO) || defined(ARDUINO_ARCH_RENESAS_PORTENTA) || defined(ARDUINO_ARCH_MBED_PORTENTA) || defined(ARDUINO_ARCH_MBED_GIGA)
 
 // Definition for a single channel clockless controller for RA4M1 (Cortex M4)
 // See clockless.h for detailed info on how the template parameters are used.
@@ -2926,7 +3098,13 @@ if(is800KHz) {
 #define ARM_DWT_CTRL_CYCCNTENA          (1 << 0)                // Enable cycle count
 #define ARM_DWT_CYCCNT          (*(volatile uint32_t *)0xE0001004) // Cycle count register
 
+#if defined(ARDUINO_PORTENTA_H7_M7) || defined(ARDUINO_GIGA)
+#define F_CPU 480000000
+#elif defined(ARDUINO_PORTENTA_H7_M4)
+#define F_CPU 240000000
+#else
 #define F_CPU 48000000
+#endif
 #define CYCLES_800_T0H (F_CPU / 4000000)
 #define CYCLES_800_T1H (F_CPU / 1250000)
 #define CYCLES_800 (F_CPU / 800000)
@@ -2936,15 +3114,23 @@ if(is800KHz) {
 
   uint8_t *p = pixels, *end = p + numBytes, pix, mask;
 
+// --- Platform-specific Pin Setup ---
+#if defined(ARDUINO_ARCH_MBED_PORTENTA) || defined(ARDUINO_ARCH_MBED_GIGA)
+  // Convert the Arduino pin number to an mbed PinName.
+  mbed::DigitalOut dout(digitalPinToPinName(pin));
+#else
   bsp_io_port_pin_t io_pin = g_pin_cfg[pin].pin;
+  // Macro to calculate the port base address for the given pin
   #define PIN_IO_PORT_ADDR(pn)      (R_PORT0 + ((uint32_t) (R_PORT1 - R_PORT0) * ((pn) >> 8u)))
 
   volatile uint16_t *set = &(PIN_IO_PORT_ADDR(io_pin)->POSR);
   volatile uint16_t *clr = &(PIN_IO_PORT_ADDR(io_pin)->PORR);
   uint16_t msk = (1U << (io_pin & 0xFF));
+#endif
 
   uint32_t cyc;
 
+  // Enable the cycle counter: ARM registers for precise timing.
   ARM_DEMCR |= ARM_DEMCR_TRCENA;
   ARM_DWT_CTRL |= ARM_DWT_CTRL_CYCCNTENA;
 
@@ -2955,10 +3141,17 @@ if(is800KHz) {
     while (p < end) {
       pix = *p++;
       for (mask = 0x80; mask; mask >>= 1) {
+        // Wait until the beginning of the next bit period.
         while (ARM_DWT_CYCCNT - cyc < CYCLES_800)
           ;
         cyc = ARM_DWT_CYCCNT;
+        // Set the pin high:
+#if defined(ARDUINO_ARCH_MBED_PORTENTA) || defined(ARDUINO_ARCH_MBED_GIGA)
+        dout = 1;
+#else
         *set = msk;
+#endif
+        // Keep the pin high for T1H or T0H depending on the data bit:
         if (pix & mask) {
           while (ARM_DWT_CYCCNT - cyc < CYCLES_800_T1H)
             ;
@@ -2966,9 +3159,15 @@ if(is800KHz) {
           while (ARM_DWT_CYCCNT - cyc < CYCLES_800_T0H)
             ;
         }
+        // Set the pin low:
+#if defined(ARDUINO_ARCH_MBED_PORTENTA) || defined(ARDUINO_ARCH_MBED_GIGA)
+        dout = 0;
+#else
         *clr = msk;
+#endif
       }
     }
+    // Ensure the final low state lasts the full period.
     while (ARM_DWT_CYCCNT - cyc < CYCLES_800)
       ;
 #if defined(NEO_KHZ400)
@@ -2980,7 +3179,12 @@ if(is800KHz) {
         while (ARM_DWT_CYCCNT - cyc < CYCLES_400)
           ;
         cyc = ARM_DWT_CYCCNT;
+        // Set the pin high:
+#if defined(ARDUINO_ARCH_MBED_PORTENTA) || defined(ARDUINO_ARCH_MBED_GIGA)
+        dout = 1;
+#else
         *set = msk;
+#endif
         if (pix & mask) {
           while (ARM_DWT_CYCCNT - cyc < CYCLES_400_T1H)
             ;
@@ -2988,9 +3192,15 @@ if(is800KHz) {
           while (ARM_DWT_CYCCNT - cyc < CYCLES_400_T0H)
             ;
         }
+        // Set the pin low:
+#if defined(ARDUINO_ARCH_MBED_PORTENTA) || defined(ARDUINO_ARCH_MBED_GIGA)
+        dout = 0;
+#else
         *clr = msk;
+#endif
       }
     }
+    // Ensure the final low state lasts the full period.
     while (ARM_DWT_CYCCNT - cyc < CYCLES_400)
       ;
   }
@@ -3108,6 +3318,11 @@ if(is800KHz) {
     }
   }
 
+#elif defined(ARDUINO_ARCH_CH32)
+  ch32Show(gpioPort, gpioPin, pixels, numBytes, is800KHz);
+#elif defined(ARDUINO_ARCH_RP2040) && defined(__riscv)
+  // Use PIO
+  rp2040Show(pin, pixels, numBytes, is800KHz);
 #else
 #error Architecture not supported
 #endif
@@ -3141,6 +3356,15 @@ void Adafruit_NeoPixel::setPin(int16_t p) {
 #if defined(ARDUINO_ARCH_STM32) || defined(ARDUINO_ARCH_ARDUINO_CORE_STM32)
   gpioPort = digitalPinToPort(p);
   gpioPin = STM_LL_GPIO_PIN(digitalPinToPinName(p));
+#elif defined(ARDUINO_ARCH_CH32)
+  PinName const pin_name = digitalPinToPinName(pin);
+  gpioPort = get_GPIO_Port(CH_PORT(pin_name));
+  gpioPin = CH_GPIO_PIN(pin_name);
+  #if defined (CH32V20x_D6)
+  if (gpioPort == GPIOC && ((*(volatile uint32_t*)0x40022030) & 0x0F000000) == 0) {
+    gpioPin = gpioPin >> 13;
+  }
+  #endif
 #endif
 }
 
@@ -3553,4 +3777,4 @@ neoPixelType Adafruit_NeoPixel::str2order(const char *v) {
   }
   if (w < 0) w = r; // If 'w' not specified, duplicate r bits
   return (w << 6) | (r << 4) | ((g & 3) << 2) | (b & 3);
-} 
+}

@@ -5,7 +5,7 @@
 #include "Arduino_ESP32LCD16.h"
 
 #if defined(ESP32) && (CONFIG_IDF_TARGET_ESP32S3)
-#if (ESP_ARDUINO_VERSION_MAJOR < 3)
+#if (!defined(ESP_ARDUINO_VERSION_MAJOR)) || (ESP_ARDUINO_VERSION_MAJOR < 3)
 
 #define WAIT_LCD_NOT_BUSY while (LCD_CAM.lcd_user.val & LCD_CAM_LCD_START)
 
@@ -483,6 +483,9 @@ void Arduino_ESP32LCD16::writeYCbCrPixels(uint8_t *yData, uint8_t *cbData, uint8
     uint16_t *dest = _buffer16;
     uint16_t *dest2 = dest + w;
 
+    uint8_t pxCb, pxCr;
+    int16_t pxR, pxG, pxB, pxY;
+  
     uint16_t l = (w * 4) - 4;
     uint32_t out_dmadesc = ((l + 3) & (~3)) | l << 12 | 0xC0000000;
     bool poll_started = false;
@@ -490,21 +493,20 @@ void Arduino_ESP32LCD16::writeYCbCrPixels(uint8_t *yData, uint8_t *cbData, uint8
     {
       for (int col = 0; col < cols; ++col)
       {
-        uint8_t cb = *cbData++;
-        uint8_t cr = *crData++;
-        int16_t r = CR2R16[cr];
-        int16_t g = -CB2G16[cb] - CR2G16[cr];
-        int16_t b = CB2B16[cb];
-        int16_t y;
+        pxCb = *cbData++;
+        pxCr = *crData++;
+        pxR = CR2R16[pxCr];
+        pxG = -CB2G16[pxCb] - CR2G16[pxCr];
+        pxB = CB2B16[pxCb];
 
-        y = Y2I16[*yData++];
-        *dest++ = CLIPR[y + r] | CLIPG[y + g] | CLIPB[y + b];
-        y = Y2I16[*yData++];
-        *dest++ = CLIPR[y + r] | CLIPG[y + g] | CLIPB[y + b];
-        y = Y2I16[*yData2++];
-        *dest2++ = CLIPR[y + r] | CLIPG[y + g] | CLIPB[y + b];
-        y = Y2I16[*yData2++];
-        *dest2++ = CLIPR[y + r] | CLIPG[y + g] | CLIPB[y + b];
+        pxY = Y2I16[*yData++];
+        *dest++ = CLIPR[pxY + pxR] | CLIPG[pxY + pxG] | CLIPB[pxY + pxB];
+        pxY = Y2I16[*yData++];
+        *dest++ = CLIPR[pxY + pxR] | CLIPG[pxY + pxG] | CLIPB[pxY + pxB];
+        pxY = Y2I16[*yData2++];
+        *dest2++ = CLIPR[pxY + pxR] | CLIPG[pxY + pxG] | CLIPB[pxY + pxB];
+        pxY = Y2I16[*yData2++];
+        *dest2++ = CLIPR[pxY + pxR] | CLIPG[pxY + pxG] | CLIPB[pxY + pxB];
       }
       yData += w;
       yData2 += w;
@@ -552,7 +554,7 @@ void Arduino_ESP32LCD16::writeYCbCrPixels(uint8_t *yData, uint8_t *cbData, uint8
   }
 }
 
-INLINE void Arduino_ESP32LCD16::WRITECOMMAND16(uint16_t c)
+GFX_INLINE void Arduino_ESP32LCD16::WRITECOMMAND16(uint16_t c)
 {
   LCD_CAM.lcd_misc.val = LCD_CAM_LCD_CD_IDLE_EDGE | LCD_CAM_LCD_CD_CMD_SET;
   LCD_CAM.lcd_cmd_val.val = c;
@@ -560,7 +562,7 @@ INLINE void Arduino_ESP32LCD16::WRITECOMMAND16(uint16_t c)
   LCD_CAM.lcd_user.val = LCD_CAM_LCD_2BYTE_EN | LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE_REG | LCD_CAM_LCD_START;
 }
 
-INLINE void Arduino_ESP32LCD16::WRITE16(uint16_t d)
+GFX_INLINE void Arduino_ESP32LCD16::WRITE16(uint16_t d)
 {
   LCD_CAM.lcd_misc.val = LCD_CAM_LCD_CD_IDLE_EDGE;
   LCD_CAM.lcd_cmd_val.val = d;
@@ -568,7 +570,7 @@ INLINE void Arduino_ESP32LCD16::WRITE16(uint16_t d)
   LCD_CAM.lcd_user.val = LCD_CAM_LCD_2BYTE_EN | LCD_CAM_LCD_CMD | LCD_CAM_LCD_UPDATE_REG | LCD_CAM_LCD_START;
 }
 
-INLINE void Arduino_ESP32LCD16::WRITE32(uint32_t d)
+GFX_INLINE void Arduino_ESP32LCD16::WRITE32(uint32_t d)
 {
   LCD_CAM.lcd_misc.val = LCD_CAM_LCD_CD_IDLE_EDGE;
   LCD_CAM.lcd_cmd_val.val = d;
@@ -578,7 +580,7 @@ INLINE void Arduino_ESP32LCD16::WRITE32(uint32_t d)
 
 /******** low level bit twiddling **********/
 
-INLINE void Arduino_ESP32LCD16::CS_HIGH(void)
+GFX_INLINE void Arduino_ESP32LCD16::CS_HIGH(void)
 {
   if (_cs != GFX_NOT_DEFINED)
   {
@@ -586,7 +588,7 @@ INLINE void Arduino_ESP32LCD16::CS_HIGH(void)
   }
 }
 
-INLINE void Arduino_ESP32LCD16::CS_LOW(void)
+GFX_INLINE void Arduino_ESP32LCD16::CS_LOW(void)
 {
   if (_cs != GFX_NOT_DEFINED)
   {
@@ -594,5 +596,5 @@ INLINE void Arduino_ESP32LCD16::CS_LOW(void)
   }
 }
 
-#endif // #if defined(ESP_ARDUINO_VERSION_MAJOR) && (ESP_ARDUINO_VERSION_MAJOR < 3)
+#endif // #if (!defined(ESP_ARDUINO_VERSION_MAJOR)) || (ESP_ARDUINO_VERSION_MAJOR < 3)
 #endif // #if defined(ESP32) && (CONFIG_IDF_TARGET_ESP32S3)

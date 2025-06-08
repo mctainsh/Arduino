@@ -1,0 +1,15 @@
+/test_clip_corner.c
+/test_draw_blend.c
+/test_draw_label.c
+/test_draw_layer.c
+/test_draw_sw_post_process.c
+/test_draw_vector.c
+/test_image_formats.c
+/test_layer_transform.c
+/test_render_to_al88.c
+/test_render_to_argb8888.c
+/test_render_to_i1.c
+/test_render_to_l8.c
+/test_render_to_rgb565.c
+/test_render_to_rgb888.c
+/test_render_to_xrgb8888.c

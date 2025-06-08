@@ -45,6 +45,7 @@ public:
 
   void writeRepeat(uint16_t p, uint32_t len) override;
   void writePixels(uint16_t *data, uint32_t len) override;
+  void write16bitBeRGBBitmapR1(uint16_t *bitmap, int16_t w, int16_t h) override;
 
   void batchOperation(const uint8_t *operations, size_t len) override;
   void writeBytes(uint8_t *data, uint32_t len) override;
@@ -55,10 +56,10 @@ public:
 
 protected:
 private:
-  INLINE void CS_HIGH(void);
-  INLINE void CS_LOW(void);
-  INLINE void POLL_START();
-  INLINE void POLL_END();
+  GFX_INLINE void CS_HIGH(void);
+  GFX_INLINE void CS_LOW(void);
+  GFX_INLINE void POLL_START();
+  GFX_INLINE void POLL_END();
 
   int8_t _cs, _sck, _mosi, _miso, _quadwp, _quadhd;
   bool _is_shared_interface;

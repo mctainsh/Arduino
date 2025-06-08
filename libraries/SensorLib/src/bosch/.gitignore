@@ -1,0 +1,9 @@
+/BoschParseBase.hpp
+/BoschParseCallbackManager.hpp
+/BoschParseStatic.cpp
+/BoschParseStatic.hpp
+/BoschPhySensorInfo.hpp
+/BoschSensorControl.hpp
+/BoschSensorDataHelper.hpp
+/BoschSensorID.hpp
+/BoschSensorInfo.hpp

@@ -1,0 +1,6 @@
+/SensorArduinoFreeRTOS_Lock.hpp
+/SensorArduinoMbed_Lock.hpp
+/SensorArduinoZephyr_Lock.hpp
+/SensorCommArduino_HW.hpp
+/SensorCommArduino_I2C.hpp
+/SensorCommArduino_SPI.hpp

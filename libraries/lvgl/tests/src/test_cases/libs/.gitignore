@@ -1,0 +1,12 @@
+/test_barcode.c
+/test_bin_decoder.c
+/test_bmp.c
+/test_font_stress.c
+/test_freetype.c
+/test_libjpeg_turbo.c
+/test_libpng.c
+/test_lodepng.c
+/test_memmove.c
+/test_qrcode.c
+/test_tiny_ttf.c
+/test_tjpgd.c

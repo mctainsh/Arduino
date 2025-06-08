@@ -29,7 +29,7 @@
 #include "font/u8g2_font_unifont_t_cjk.h"
 #endif
 
-#define RGB565(r, g, b) ((((r)&0xF8) << 8) | (((g)&0xFC) << 3) | ((b) >> 3))
+#define RGB565(r, g, b) ((((r) & 0xF8) << 8) | (((g) & 0xFC) << 3) | ((b) >> 3))
 #define RGB16TO24(c) ((((uint32_t)c & 0xF800) << 8) | ((c & 0x07E0) << 5) | ((c & 0x1F) << 3))
 
 #define RGB565_BLACK RGB565(0, 0, 0)
@@ -51,6 +51,7 @@
 #define RGB565_ORANGE RGB565(255, 165, 0)
 #define RGB565_GREENYELLOW RGB565(173, 255, 41)
 #define RGB565_PALERED RGB565(255, 130, 198)
+#define RGB565_PINK RGB565(255, 198, 198)
 
 // Color definitions
 #ifndef DISABLE_COLOR_DEFINES
@@ -137,7 +138,7 @@
 #endif
 
 #if !defined(ATTINY_CORE)
-INLINE GFXglyph *pgm_read_glyph_ptr(const GFXfont *gfxFont, uint8_t c)
+GFX_INLINE static GFXglyph *pgm_read_glyph_ptr(const GFXfont *gfxFont, uint8_t c)
 {
 #ifdef __AVR__
   return &(((GFXglyph *)pgm_read_pointer(&gfxFont->glyph))[c]);
@@ -149,7 +150,7 @@ INLINE GFXglyph *pgm_read_glyph_ptr(const GFXfont *gfxFont, uint8_t c)
 #endif //__AVR__
 }
 
-INLINE uint8_t *pgm_read_bitmap_ptr(const GFXfont *gfxFont)
+GFX_INLINE static uint8_t *pgm_read_bitmap_ptr(const GFXfont *gfxFont)
 {
 #ifdef __AVR__
   return (uint8_t *)pgm_read_pointer(&gfxFont->bitmap);
@@ -222,9 +223,9 @@ public:
   void draw16bitRGBBitmapWithMask(int16_t x, int16_t y, const uint16_t bitmap[], const uint8_t mask[], int16_t w, int16_t h);
   void draw24bitRGBBitmap(int16_t x, int16_t y, const uint8_t bitmap[], const uint8_t mask[], int16_t w, int16_t h);
   void draw24bitRGBBitmap(int16_t x, int16_t y, uint8_t *bitmap, uint8_t *mask, int16_t w, int16_t h);
-  void getTextBounds(const char *string, int16_t x, int16_t y, int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h, bool clip = true);
-  void getTextBounds(const __FlashStringHelper *s, int16_t x, int16_t y, int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h, bool clip = true);
-  void getTextBounds(const String &str, int16_t x, int16_t y, int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h, bool clip = true);
+  void getTextBounds(const char *string, int16_t x, int16_t y, int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h);
+  void getTextBounds(const __FlashStringHelper *s, int16_t x, int16_t y, int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h);
+  void getTextBounds(const String &str, int16_t x, int16_t y, int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h);
   void setTextSize(uint8_t s);
   void setTextSize(uint8_t sx, uint8_t sy);
   void setTextSize(uint8_t sx, uint8_t sy, uint8_t pixel_margin);
@@ -239,7 +240,7 @@ public:
   int8_t u8g2_font_decode_get_signed_bits(uint8_t cnt);
   void u8g2_font_decode_len(uint8_t len, uint8_t is_foreground, uint16_t color, uint16_t bg);
 #endif // defined(U8G2_FONT_SUPPORT)
-  virtual void flush(void);
+  virtual void flush(bool force_flush = false);
 #endif // !defined(ATTINY_CORE)
 
   // adopt from LovyanGFX
@@ -286,6 +287,8 @@ public:
   virtual void draw24bitRGBBitmap(int16_t x, int16_t y, const uint8_t bitmap[], int16_t w, int16_t h);
   virtual void draw24bitRGBBitmap(int16_t x, int16_t y, uint8_t *bitmap, int16_t w, int16_t h);
   virtual void drawChar(int16_t x, int16_t y, unsigned char c, uint16_t color, uint16_t bg);
+
+  virtual void draw16bitBeRGBBitmapR1(int16_t x, int16_t y, uint16_t *bitmap, int16_t w, int16_t h);
 #endif // !defined(LITTLE_FOOT_PRINT)
 
   /**********************************************************************/
@@ -309,18 +312,10 @@ public:
   */
   void setTextBound(int16_t x, int16_t y, int16_t w, int16_t h)
   {
-    _min_text_x = (x < 0) ? 0 : x;
-    _min_text_y = (y < 0) ? 0 : y;
+    _min_text_x = x;
+    _min_text_y = y;
     _max_text_x = x + w - 1;
-    if (_max_text_x > _max_x)
-    {
-      _max_text_x = _max_x;
-    }
     _max_text_y = y + h - 1;
-    if (_max_text_y > _max_y)
-    {
-      _max_text_y = _max_y;
-    }
   }
 
   /**********************************************************************/

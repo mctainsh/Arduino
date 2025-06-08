@@ -1,0 +1,14 @@
+/test_A1_LZ4_align1.c
+/test_A2_LZ4_align1.c
+/test_A4_LZ4_align1.c
+/test_A8_LZ4_align1.c
+/test_ARGB8888_LZ4_align1.c
+/test_I1_LZ4_align1.c
+/test_I2_LZ4_align1.c
+/test_I4_LZ4_align1.c
+/test_I8_LZ4_align1.c
+/test_L8_LZ4_align1.c
+/test_RGB565A8_LZ4_align1.c
+/test_RGB565_LZ4_align1.c
+/test_RGB888_LZ4_align1.c
+/test_XRGB8888_LZ4_align1.c

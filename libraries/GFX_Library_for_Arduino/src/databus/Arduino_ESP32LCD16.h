@@ -1,14 +1,9 @@
-/*
- * start rewrite from:
- * https://github.com/lovyan03/LovyanGFX/blob/master/src/lgfx/v0/platforms/LGFX_PARALLEL_ESP32.hpp
- */
+#pragma once
+
 #include "Arduino_DataBus.h"
 
 #if defined(ESP32) && (CONFIG_IDF_TARGET_ESP32S3)
-#if (ESP_ARDUINO_VERSION_MAJOR < 3)
-
-#ifndef _ARDUINO_ESP32LCD16_H_
-#define _ARDUINO_ESP32LCD16_H_
+#if (!defined(ESP_ARDUINO_VERSION_MAJOR)) || (ESP_ARDUINO_VERSION_MAJOR < 3)
 
 #ifndef LCD_MAX_PIXELS_AT_ONCE
 #define LCD_MAX_PIXELS_AT_ONCE 2046
@@ -48,11 +43,11 @@ public:
 
 protected:
 private:
-  INLINE void WRITECOMMAND16(uint16_t c);
-  INLINE void WRITE16(uint16_t d);
-  INLINE void WRITE32(uint32_t d);
-  INLINE void CS_HIGH(void);
-  INLINE void CS_LOW(void);
+  GFX_INLINE void WRITECOMMAND16(uint16_t c);
+  GFX_INLINE void WRITE16(uint16_t d);
+  GFX_INLINE void WRITE32(uint32_t d);
+  GFX_INLINE void CS_HIGH(void);
+  GFX_INLINE void CS_LOW(void);
 
   int8_t _dc, _cs, _wr, _rd;
   int8_t _d0, _d1, _d2, _d3, _d4, _d5, _d6, _d7;
@@ -99,7 +94,5 @@ private:
   };
 };
 
-#endif // _ARDUINO_ESP32LCD16_H_
-
-#endif // #if (ESP_ARDUINO_VERSION_MAJOR < 3)
+#endif // #if (!defined(ESP_ARDUINO_VERSION_MAJOR)) || (ESP_ARDUINO_VERSION_MAJOR < 3)
 #endif // #if defined(ESP32) && (CONFIG_IDF_TARGET_ESP32S3)

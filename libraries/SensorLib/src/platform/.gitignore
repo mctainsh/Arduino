@@ -1,0 +1,12 @@
+/SensorCommBase.hpp
+/SensorCommCustom.hpp
+/SensorCommCustomHal.hpp
+/SensorCommDebug.cpp
+/SensorCommDebug.hpp
+/SensorCommEnhanced.hpp
+/SensorCommStatic.cpp
+/SensorCommStatic.hpp
+/SensorDataTypeClass.hpp
+/SensorLockBase.hpp
+/SensorSmartLock.hpp
+/TouchDataTypeClass.hpp

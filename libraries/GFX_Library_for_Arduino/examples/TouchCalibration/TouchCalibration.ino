@@ -9,7 +9,7 @@
  *
  * Resistive touchscreen libraries
  * XPT2046: https://github.com/PaulStoffregen/XPT2046_Touchscreen.git
- * 
+ *
  * Capacitive touchscreen libraries
  * TouchLib: https://github.com/mmMicky/TouchLib.git
  ******************************************************************************/
@@ -68,14 +68,14 @@ int16_t touched_y[4] = {-1};
 
 void setup(void)
 {
+#ifdef DEV_DEVICE_INIT
+  DEV_DEVICE_INIT();
+#endif
+
   Serial.begin(115200);
   // Serial.setDebugOutput(true);
   // while(!Serial);
   Serial.println("Arduino_GFX Touch Calibration example");
-
-#ifdef GFX_EXTRA_PRE_INIT
-  GFX_EXTRA_PRE_INIT();
-#endif
 
   Serial.println("Init display");
   // Init Display
@@ -83,7 +83,7 @@ void setup(void)
   {
     Serial.println("gfx->begin() failed!");
   }
-  gfx->fillScreen(BLACK);
+  gfx->fillScreen(RGB565_BLACK);
 
 #ifdef GFX_BL
   pinMode(GFX_BL, OUTPUT);
@@ -94,6 +94,23 @@ void setup(void)
   w = gfx->width();
   h = gfx->height();
   touch_init(w, h, gfx->getRotation());
+
+// not yet know TOUCH_MODULE_ADDR, scan I2C devices
+#if defined(TOUCH_SDA) && !defined(TOUCH_MODULE_ADDR)
+  for (uint8_t addr = 0x01; addr < 0x7f; addr++)
+  {
+    Wire.beginTransmission(addr);
+    uint8_t error = Wire.endTransmission();
+    if (error == 0)
+    {
+      Serial.printf("I2C device found at 0x%02X\n", addr);
+    }
+    else if (error != 2)
+    {
+      Serial.printf("Error %d at 0x%02X\n", error, addr);
+    }
+  }
+#endif
 
   // Top left
   point_x[0] = w / 8;
@@ -109,7 +126,7 @@ void setup(void)
   point_y[3] = point_y[2];
 
   gfx->setCursor(0, 0);
-  gfx->setTextColor(RED);
+  gfx->setTextColor(RGB565_RED);
   gfx->setTextSize(2);
   gfx->println("Touch Calibration");
 }
@@ -125,13 +142,13 @@ void loop()
         point_y[current_point] - 5,
         point_x[current_point] + 5,
         point_y[current_point] + 5,
-        RED);
+        RGB565_RED);
     gfx->drawLine(
         point_x[current_point] + 5,
         point_y[current_point] - 5,
         point_x[current_point] - 5,
         point_y[current_point] + 5,
-        RED);
+        RGB565_RED);
   }
 
   if (touch_touched())
@@ -208,7 +225,7 @@ void loop()
       Serial.printf("int16_t touch_map_y2 = %d;\n", touch_map_y2);
 
       gfx->setCursor(0, point_y[0] + 10);
-      gfx->setTextColor(WHITE);
+      gfx->setTextColor(RGB565_WHITE);
       gfx->setTextSize(1);
       gfx->printf("bool touch_swap_xy = %s;\n", touch_swap_xy ? "true" : "false");
       gfx->printf("int16_t touch_map_x1 = %d;\n", touch_map_x1);
@@ -220,9 +237,9 @@ void loop()
       while (!touch_touched())
         ;
 
-      gfx->fillScreen(BLACK);
+      gfx->fillScreen(RGB565_BLACK);
       gfx->setCursor(0, 0);
-      gfx->setTextColor(RED);
+      gfx->setTextColor(RGB565_RED);
       gfx->setTextSize(2);
       gfx->println("Touch Calibration");
     }

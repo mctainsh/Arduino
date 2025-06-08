@@ -484,9 +484,12 @@ void Arduino_Canvas_Indexed::drawIndexedBitmap(
   }
 }
 
-void Arduino_Canvas_Indexed::flush()
+void Arduino_Canvas_Indexed::flush(bool force_flush)
 {
-  _output->drawIndexedBitmap(_output_x, _output_y, _framebuffer, _color_index, WIDTH, HEIGHT);
+  if (_output)
+  {
+    _output->drawIndexedBitmap(_output_x, _output_y, _framebuffer, _color_index, WIDTH, HEIGHT);
+  }
 }
 
 uint8_t *Arduino_Canvas_Indexed::getFramebuffer()
@@ -526,7 +529,7 @@ uint8_t Arduino_Canvas_Indexed::get_color_index(uint16_t color)
   return _indexed_size++;
 }
 
-INLINE uint16_t Arduino_Canvas_Indexed::get_index_color(uint8_t idx)
+GFX_INLINE uint16_t Arduino_Canvas_Indexed::get_index_color(uint8_t idx)
 {
   return _color_index[idx];
 }

@@ -1,0 +1,11 @@
+/lv_draw_sw_border.c
+/lv_draw_sw_box_shadow.c
+/lv_draw_sw_fill.c
+/lv_draw_sw_gradient_private.h
+/lv_draw_sw_mask.c
+/lv_draw_sw_mask.h
+/lv_draw_sw_mask_private.h
+/lv_draw_sw_mask_rect.c
+/lv_draw_sw_private.h
+/lv_draw_sw_triangle.c
+/lv_draw_sw_vector.c

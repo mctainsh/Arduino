@@ -1,0 +1,17 @@
+/AW9364LedDriver.hpp
+/BoschFirmware.h
+/DevicesPins.h
+/ExtensionSPI.hpp
+/GaugeBQ27220.hpp
+/SensorBHI260AP.cpp
+/SensorBHI260AP_Klio.cpp
+/SensorBHI260AP_Klio.hpp
+/SensorBMA423.cpp
+/SensorLib_Version.h
+/SensorPlatform.hpp
+/SensorRtcHelper.cpp
+/SensorRtcHelper.hpp
+/TouchDrvCSTXXX.cpp
+/TouchDrvGT9895.cpp
+/TouchDrvGT9895.hpp
+/VirtualGpio.hpp

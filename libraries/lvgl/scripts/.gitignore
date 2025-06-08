@@ -1,1 +1,9 @@
-CHANGELOG_LAST.md
+/LVGLImage.py
+/generate_lv_conf.py
+/image_viewer.py
+/install-prerequisites.bat
+/install_astyle.sh
+/kconfig_verify.py
+/properties.py
+/trace_filter.py
+/update_version.py

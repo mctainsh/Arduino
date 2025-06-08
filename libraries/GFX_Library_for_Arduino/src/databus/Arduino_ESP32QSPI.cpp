@@ -56,6 +56,11 @@ bool Arduino_ESP32QSPI::begin(int32_t speed, int8_t dataMode)
       .data7_io_num = -1,
       .max_transfer_sz = (ESP32QSPI_MAX_PIXELS_AT_ONCE * 16) + 8,
       .flags = SPICOMMON_BUSFLAG_MASTER | SPICOMMON_BUSFLAG_GPIO_PINS,
+#if (!defined(ESP_ARDUINO_VERSION_MAJOR)) || (ESP_ARDUINO_VERSION_MAJOR < 3)
+      // skip this
+#else
+      .isr_cpu_id = ESP_INTR_CPU_AFFINITY_AUTO,
+#endif
       .intr_flags = 0};
   esp_err_t ret = spi_bus_initialize(ESP32QSPI_SPI_HOST, &buscfg, ESP32QSPI_DMA_CHANNEL);
   if (ret != ESP_OK)
@@ -69,6 +74,9 @@ bool Arduino_ESP32QSPI::begin(int32_t speed, int8_t dataMode)
       .address_bits = 24,
       .dummy_bits = 0,
       .mode = (uint8_t)_dataMode,
+      #if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+      .clock_source = SPI_CLK_SRC_DEFAULT,
+      #endif
       .duty_cycle_pos = 0,
       .cs_ena_pretrans = 0,
       .cs_ena_posttrans = 0,
@@ -128,7 +136,7 @@ void Arduino_ESP32QSPI::endWrite()
 {
   if (_is_shared_interface)
   {
-    spi_device_acquire_bus(_handle, portMAX_DELAY);
+    spi_device_release_bus(_handle);
   }
 }
 
@@ -542,6 +550,60 @@ void Arduino_ESP32QSPI::writeBytes(uint8_t *data, uint32_t len)
 }
 
 /**
+ * @brief write16bitBeRGBBitmapR1
+ *
+ * @param bitmap
+ * @param w
+ * @param h
+ */
+void Arduino_ESP32QSPI::write16bitBeRGBBitmapR1(uint16_t *bitmap, int16_t w, int16_t h)
+{
+  if (h > ESP32QSPI_MAX_PIXELS_AT_ONCE)
+  {
+    log_e("h > ESP32QSPI_MAX_PIXELS_AT_ONCE, h: %d", h);
+  }
+  else
+  {
+    CS_LOW();
+    uint32_t l = h << 4;
+    bool first_send = true;
+    uint16_t *p;
+    uint16_t *origin_offset = bitmap + ((h - 1) * w);
+
+    for (int16_t i = 0; i < w; i++)
+    {
+      if (first_send)
+      {
+        _spi_tran_ext.base.flags = SPI_TRANS_MODE_QIO;
+        _spi_tran_ext.base.cmd = 0x32;
+        _spi_tran_ext.base.addr = 0x003C00;
+        first_send = false;
+      }
+      else
+      {
+        POLL_END();
+        _spi_tran_ext.base.flags = SPI_TRANS_MODE_QIO | SPI_TRANS_VARIABLE_CMD |
+                                   SPI_TRANS_VARIABLE_ADDR | SPI_TRANS_VARIABLE_DUMMY;
+      }
+
+      p = origin_offset + i;
+      for (int16_t j = 0; j < h; j++)
+      {
+        _buffer16[j] = *p;
+        p -= w;
+      }
+
+      _spi_tran_ext.base.tx_buffer = _buffer16;
+      _spi_tran_ext.base.length = l;
+
+      POLL_START();
+    }
+    POLL_END();
+    CS_HIGH();
+  }
+}
+
+/**
  * @brief writeIndexedPixels
  *
  * @param data
@@ -658,26 +720,28 @@ void Arduino_ESP32QSPI::writeYCbCrPixels(uint8_t *yData, uint8_t *cbData, uint8_
 
     uint16_t out_bits = w << 5;
 
+    uint8_t pxCb, pxCr;
+    int16_t pxR, pxG, pxB, pxY;
+
     CS_LOW();
     for (int row = 0; row < rows; ++row)
     {
       for (int col = 0; col < cols; ++col)
       {
-        uint8_t cb = *cbData++;
-        uint8_t cr = *crData++;
-        int16_t r = CR2R16[cr];
-        int16_t g = -CB2G16[cb] - CR2G16[cr];
-        int16_t b = CB2B16[cb];
-        int16_t y;
+        pxCb = *cbData++;
+        pxCr = *crData++;
+        pxR = CR2R16[pxCr];
+        pxG = -CB2G16[pxCb] - CR2G16[pxCr];
+        pxB = CB2B16[pxCb];
 
-        y = Y2I16[*yData++];
-        *dest++ = CLIPRBE[y + r] | CLIPGBE[y + g] | CLIPBBE[y + b];
-        y = Y2I16[*yData++];
-        *dest++ = CLIPRBE[y + r] | CLIPGBE[y + g] | CLIPBBE[y + b];
-        y = Y2I16[*yData2++];
-        *dest2++ = CLIPRBE[y + r] | CLIPGBE[y + g] | CLIPBBE[y + b];
-        y = Y2I16[*yData2++];
-        *dest2++ = CLIPRBE[y + r] | CLIPGBE[y + g] | CLIPBBE[y + b];
+        pxY = Y2I16[*yData++];
+        *dest++ = CLIPRBE[pxY + pxR] | CLIPGBE[pxY + pxG] | CLIPBBE[pxY + pxB];
+        pxY = Y2I16[*yData++];
+        *dest++ = CLIPRBE[pxY + pxR] | CLIPGBE[pxY + pxG] | CLIPBBE[pxY + pxB];
+        pxY = Y2I16[*yData2++];
+        *dest2++ = CLIPRBE[pxY + pxR] | CLIPGBE[pxY + pxG] | CLIPBBE[pxY + pxB];
+        pxY = Y2I16[*yData2++];
+        *dest2++ = CLIPRBE[pxY + pxR] | CLIPGBE[pxY + pxG] | CLIPBBE[pxY + pxB];
       }
       yData += w;
       yData2 += w;
@@ -720,9 +784,9 @@ void Arduino_ESP32QSPI::writeYCbCrPixels(uint8_t *yData, uint8_t *cbData, uint8_
 /**
  * @brief CS_HIGH
  *
- * @return INLINE
+ * @return GFX_INLINE
  */
-INLINE void Arduino_ESP32QSPI::CS_HIGH(void)
+GFX_INLINE void Arduino_ESP32QSPI::CS_HIGH(void)
 {
   *_csPortSet = _csPinMask;
 }
@@ -730,9 +794,9 @@ INLINE void Arduino_ESP32QSPI::CS_HIGH(void)
 /**
  * @brief CS_LOW
  *
- * @return INLINE
+ * @return GFX_INLINE
  */
-INLINE void Arduino_ESP32QSPI::CS_LOW(void)
+GFX_INLINE void Arduino_ESP32QSPI::CS_LOW(void)
 {
   *_csPortClr = _csPinMask;
 }
@@ -740,9 +804,9 @@ INLINE void Arduino_ESP32QSPI::CS_LOW(void)
 /**
  * @brief POLL_START
  *
- * @return INLINE
+ * @return GFX_INLINE
  */
-INLINE void Arduino_ESP32QSPI::POLL_START()
+GFX_INLINE void Arduino_ESP32QSPI::POLL_START()
 {
   spi_device_polling_start(_handle, _spi_tran, portMAX_DELAY);
 }
@@ -750,9 +814,9 @@ INLINE void Arduino_ESP32QSPI::POLL_START()
 /**
  * @brief POLL_END
  *
- * @return INLINE
+ * @return GFX_INLINE
  */
-INLINE void Arduino_ESP32QSPI::POLL_END()
+GFX_INLINE void Arduino_ESP32QSPI::POLL_END()
 {
   spi_device_polling_end(_handle, portMAX_DELAY);
 }
