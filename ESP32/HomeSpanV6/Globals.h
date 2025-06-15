@@ -7,8 +7,6 @@
 
 //#define PIXEL_COUNT 300
 
-#define MAX_BRIGHTNESS 255
-
 // NOTE : W2815 (12V uinsg need to swap red and green in DEV_RebLed.h)
 //#define IS_W2815_12V false
 
@@ -29,7 +27,7 @@
 // Version 2 = 1
 // Version 3 = 6
 // LOLIN S2 Mini = 18
-#define NEOPIXEL_RGBW_PIN    2	
+#define NEOPIXEL_PIN  6	
 
 // Which input switchs the power onto the NeoPixels power?
 // Version 3 = 5
@@ -65,10 +63,10 @@ const char* MANUFACTURER = "Secure Hub";
 //const char* BRIDGE_NAME = "SH Bridge 03";
 //const char* PARING_CODE = "88880003";
 
-const char* SERIAL_NO	= "JRM.008.3";		// Big strip back wall and mirror
-const char* BRIDGE_NAME = "SH Lego 01";	// Claudia's Lego #1
-const char* PARING_CODE = "88880010";
-#define PIXEL_COUNT 600
+//const char* SERIAL_NO	= "JRM.008.3";		// Big strip back wall and mirror
+//const char* BRIDGE_NAME = "SH Lego 01";	// Claudia's Lego #1
+//const char* PARING_CODE = "88880010";
+//#define PIXEL_COUNT 600
 
 //const char* BRIDGE_NAME = "Stranger Things";	// Claudia's Lego #2 Stranger times
 //const char* PARING_CODE = "88880011";
@@ -111,13 +109,19 @@ const char* PARING_CODE = "88880010";
 //const char* BRIDGE_NAME = "Long 12V";	
 //const char* PARING_CODE = "88880026";
 //#define PIXEL_COUNT 600
-//#define IS_W2815_12V true
+//#define IS_W2815_12V
 
 //const char* SERIAL_NO   = "JRM.008.27"; // Farm 12V strip
 //const char* BRIDGE_NAME = "Long 12V";
 //const char* PARING_CODE = "88880027";
 //#define PIXEL_COUNT 600
-//#define IS_W2815_12V true
+//#define IS_W2815_12V 
+
+const char* SERIAL_NO   = "JRM.008.28"; // Study S1
+const char* BRIDGE_NAME = "Study S1";
+const char* PARING_CODE = "88880028";
+#define MAX_BRIGHTNESS 100
+#define PIXEL_COUNT 300
 
 extern Adafruit_NeoPixel g_strip;
 extern void TurnOnStrip(bool on);

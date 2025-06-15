@@ -1,8 +1,9 @@
 /*********************************************************************************
    Setup notes
- 	1) Increase Partition size with Tools -> Partition size -> Minimal Spiffs (Or Huge APP)
-	2) Clear memory (ONLY IF NEW). Tools -> Erase All Flast before upload -> Enable 
-	3) Set Library versions
+    1) Setup WIFI credentials
+ 	2) Increase Partition size with Tools -> Partition size -> Minimal Spiffs (Or Huge APP)
+	3) Clear memory (ONLY IF NEW). Tools -> Erase All Flast before upload -> Enable 
+	4) Set Library versions
 		HomeSpan 2.1.0
 		Adafruit_NeoPixel 1.12.4
 
@@ -19,7 +20,7 @@
 #include "DEV_RgbLED.h"
 #include "Globals.h"
 
-Adafruit_NeoPixel g_strip(PIXEL_COUNT, NEOPIXEL_RGBW_PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel g_strip(PIXEL_COUNT, NEOPIXEL_PIN, NEO_GRB + NEO_KHZ800);
 
 boolean _powerOn = false;
 
