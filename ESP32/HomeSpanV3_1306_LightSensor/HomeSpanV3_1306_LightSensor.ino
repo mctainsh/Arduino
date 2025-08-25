@@ -2,53 +2,73 @@
 #include <Adafruit_SSD1306.h>
 #include <SPI.h>
 #include <Wire.h>
+#include <esp_task_wdt.h>
 
 #include <HTTPClient.h>
 #include <WiFi.h>
 
 #include "DHT.h"
 
-const char *ssid = "RhinoNBN";
-const char *password = "DexterIs#1BadDog";
-
 #include <Fonts/Picopixel.h>
 #include <Fonts/FreeMono9pt7b.h>
 
+// Make your own credential header file with SSID and PASSWORD
+#include "Credentials.h"
+
 
 // Roaming module
-//#define SENSOR_ID 0
-//#define SCREEN_HEIGHT 32
+#define SENSOR_ID 0
+#define SCREEN_HEIGHT 32
 
 // Bedroom
-#define SENSOR_ID 1
-#define SCREEN_HEIGHT 64
+//#define SENSOR_ID 1
+//#define SCREEN_HEIGHT 64
 
 
 #define SCREEN_WIDTH 128
-#define SCREEN_ADDRESS 0x3C //< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
+#define SCREEN_ADDRESS 0x3C	 //< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
 #define SDA_PIN 18
 #define SCL_PIN 19
 #define OLED_RESET -1
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-#define LED_B 3		  // Blue. Near OLED
-#define LED_G 5		  // Green. Near USB
-#define LED_P 10	  // Yellow. Power. Near NeoPixel output
-#define INPUT_LIGHT 4 // IO4
+#define LED_B 3		   // Blue. Near OLED
+#define LED_G 5		   // Green. Near USB
+#define LED_P 10	   // Yellow. Power. Near NeoPixel output
+#define INPUT_LIGHT 4  // IO4
 
-#define DHTPIN 2	  // Digital pin connected to the DHT sensor
-#define DHTTYPE DHT22 // DHT 22  (AM2302), AM2321
+#define DHTPIN 2	   // Digital pin connected to the DHT sensor
+#define DHTTYPE DHT22  // DHT 22  (AM2302), AM2321
 
 DHT _dht(DHTPIN, DHTTYPE);
 
+// Define the watchdog config
+esp_task_wdt_config_t wdt_config = {
+	.timeout_ms = 60000,
+	.idle_core_mask = (1 << portNUM_PROCESSORS) - 1,
+	.trigger_panic = true
+};
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+// Setup everything here
 void setup()
 {
+	//esp_task_wdt_init(WDT_TIMEOUT, true);  // 120 seconds timeout, panic on timeout
+	//esp_task_wdt_add(NULL);		  // Add the current task to the watchdog
+	//esp_task_wdt_reset();
+
 	// Setup serial ports
 	Serial.begin(115200);
-	Serial.println("Start V1.2");
+	Serial.println("Start V1.3");
 
-	WiFi.begin(ssid, password);
+	// Initialize and add current task
+	esp_task_wdt_deinit();	// Always deinit first if WDT was previously active
+	esp_task_wdt_init(&wdt_config);
+	esp_task_wdt_add(NULL);	 // Add current task (loop) to WDT
+
+	// Setup wifi but don't start
+	WiFi.begin(SSID, PASSWORD);
 
 	// Turn on LEDS
 	pinMode(LED_B, OUTPUT);
@@ -78,10 +98,13 @@ void setup()
 	display.setCursor(20, 20);
 	while (WiFi.status() != WL_CONNECTED)
 	{
-		delay(500);
 		display.print(".");
 		display.display();
 		Serial.println("Connecting to WiFi..");
+		digitalWrite(LED_G, HIGH);
+		delay(500);
+		digitalWrite(LED_G, LOW);
+		delay(1000);
 	}
 	display.print("Connected");
 
@@ -115,6 +138,8 @@ float _tempC;
 // Main loop
 void loop()
 {
+	esp_task_wdt_reset();	// Reset watch dog timer
+
 	int16_t x1, y1;
 	uint16_t w, h;
 	char intStr[64];
@@ -143,7 +168,7 @@ void loop()
 		sprintf(_tempStr, "--°C");
 	else
 		sprintf(_tempStr, "%.1fC", _tempC);
-	display.setCursor(1, 18);
+	display.setCursor(1, 24);
 	display.setTextSize(2);
 	display.print(_tempStr);
 
@@ -151,26 +176,29 @@ void loop()
 		sprintf(_humidityStr, "--");
 	else
 		sprintf(_humidityStr, "%.1f", _humidity);
-	display.setCursor(70, 18);
+	display.setCursor(70, 24);
 	display.setTextSize(2);
 	display.print(_humidityStr);
-
-	Serial.print(F("Humidity: "));
-	Serial.print(_humidity);
-	Serial.print(F("%  Temperature: "));
-	Serial.print(_tempC);
-	Serial.print(F("°C "));
-	Serial.println();
 
 	// Average the value
 	_bufferIndex++;
 	if (0 > _bufferIndex || _bufferIndex >= BUFFER_LEN)
 		_bufferIndex = 0;
-	_buffer[_bufferIndex] = analogRead(INPUT_LIGHT);
+	int currentLight = analogRead(INPUT_LIGHT);
+	_buffer[_bufferIndex] = currentLight;
 	long total = 0;
 	for (int n = 0; n < BUFFER_LEN; n++)
 		total += _buffer[n];
-	int mean = total / BUFFER_LEN;
+	int meanLight = total / BUFFER_LEN;
+
+	// Log to serial
+	Serial.print(F("Humidity: "));
+	Serial.print(_humidity);
+	Serial.print(F("%  Temperature: "));
+	Serial.print(_tempC);
+	Serial.print(F("°C  Light:"));
+	Serial.print(currentLight);
+	Serial.println();
 
 	// Send every time we hit zero
 	if (sendData)
@@ -186,14 +214,14 @@ void loop()
 		char httpBuff[255];
 		// 0 = Roaming
 		// 1 = Bed room
-		// sprintf(httpBuff, "http://192.168.1.7:488/api/weatherforecast/SaveLight/%d/0", mean);
-		sprintf(httpBuff, "https://iSurv8.securehub.net/api/weatherforecast/SaveLight/%d/%d/%s/%s", mean, SENSOR_ID, _tempStr, _humidityStr);
+		// sprintf(httpBuff, "http://192.168.1.7:488/api/weatherforecast/SaveLight/%d/0", meanLight);
+		sprintf(httpBuff, "https://iSurv8.securehub.net/api/weatherforecast/SaveLight/%d/%d/%s/%s", meanLight, SENSOR_ID, _tempStr, _humidityStr);
 		Serial.println(httpBuff);
 		HTTPClient http;
-		http.begin(httpBuff); // Specify the URL
+		http.begin(httpBuff);  // Specify the URL
 		int httpCode = http.GET();
 		if (httpCode > 0)
-		{ // Check for the returning code
+		{  // Check for the returning code
 			_countGood++;
 			String payload = http.getString();
 			Serial.println(httpCode);
@@ -207,20 +235,26 @@ void loop()
 			display.print("Error on HTTP");
 		}
 		display.display();
-		http.end(); // Free the resources
+		http.end();	 // Free the resources
 
 		// display.setCursor(SCREEN_WIDTH - w, h);
 		delay(5000);
 	}
 
 	// Draw analog value
-	itoa(mean, intStr, 10);
+	itoa(meanLight, intStr, 10);
 	//display.setFont(&TomThumb);
 	display.setTextSize(1);
 	display.getTextBounds(intStr, 0, 0, &x1, &y1, &w, &h);
-	display.setCursor(SCREEN_WIDTH - w - x1, 1);//SCREEN_HEIGHT - h - y1);
+	display.setCursor(SCREEN_WIDTH - w - x1, 1);  //SCREEN_HEIGHT - h - y1);
 	display.print(intStr);
+
+	// Draw the light
+	display.setCursor(10, 1);
+	display.setTextSize(2);
+	display.print(currentLight);
 
 	// Update display
 	display.display();
+	delay(1000);
 }
